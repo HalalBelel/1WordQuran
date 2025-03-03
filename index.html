@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Quran Player on GitHub Pages</title>
+  <style>
+    body { font-family: "Courier New", monospace; padding: 1em; }
+    #display { margin: 1em 0; font-size: 18px; }
+    #playerSection { display: none; }
+  </style>
+</head>
+<body>
+  <h1>Quran Player</h1>
+  <form id="playerForm">
+    <label>Surah: <input type="number" id="surah" name="surah" required></label>
+    <label>Ayah: <input type="number" id="ayah" name="ayah" required></label>
+    <button type="submit">Play</button>
+  </form>
+
+  <div id="playerSection">
+    <h2 id="header"></h2>
+    <div id="display"></div>
+    <button id="playPause">Play/Pause</button>
+    <br>
+    <audio id="audioPlayer" controls autoplay></audio>
+  </div>
+
+  <script>
+    const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
+    let data = null;
+    let currentAyah = 0;
+    let surah = 0;
+    let wordTimers = [];
+    let playing = true;
+    const audioPlayer = document.getElementById("audioPlayer");
+    const display = document.getElementById("display");
+    const header = document.getElementById("header");
+    const playPauseButton = document.getElementById("playPause");
+
+    document.getElementById("playerForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      surah = parseInt(document.getElementById("surah").value);
+      currentAyah = parseInt(document.getElementById("ayah").value);
+      // Hide form and show the player section.
+      document.getElementById("playerForm").style.display = "none";
+      document.getElementById("playerSection").style.display = "block";
+      // Load the surah JSON data from the embedded folder.
+      loadSurahData(surah).then(() => {
+        playAyah(currentAyah);
+      });
+    });
+
+    async function loadSurahData(surah) {
+      try {
+        const response = await fetch(`json/${surah}.json`);
+        data = await response.json();
+      } catch (err) {
+        console.error("Error loading JSON data", err);
+      }
+    }
+
+    function playAyah(ayah) {
+      header.innerText = `Surah ${("000" + surah).slice(-3)}, Ayah ${("000" + ayah).slice(-3)}`;
+      // Clear any existing timers.
+      wordTimers.forEach(timer => clearTimeout(timer));
+      wordTimers = [];
+      
+      const surahStr = ("000" + surah).slice(-3);
+      const ayahStr = ("000" + ayah).slice(-3);
+      // Set the audio source to the remote URL.
+      audioPlayer.src = remoteBaseUrl + surahStr + ayahStr + ".mp3";
+      audioPlayer.load();
+      audioPlayer.play();
+
+      // Schedule word display updates after metadata loads.
+      audioPlayer.onloadedmetadata = function() {
+        const ayahData = data[String(ayah)];
+        if (!ayahData) return;
+        ayahData["w"].forEach((word, index) => {
+          let targetTimeMs = (parseFloat(word["b"]) - 0.4) * 1000;
+          let timer = setTimeout(() => {
+            display.innerHTML = "Index: " + surahStr + ":" + ayahStr + ":" + ("000" + (index + 1)).slice(-3) +
+                                "<br>" + word["c"] +
+                                "<br>" + word["e"];
+          }, targetTimeMs);
+          wordTimers.push(timer);
+        });
+      };
+
+      // Pre-buffer the next three ayahs if available.
+      for (let next = ayah + 1; next <= ayah + 3; next++) {
+        if (data[String(next)]) {
+          let nextAyahStr = ("000" + next).slice(-3);
+          let audio = new Audio(remoteBaseUrl + surahStr + nextAyahStr + ".mp3");
+          audio.preload = "auto";
+        }
+      }
+
+      // When the current ayah ends, play the next one if it exists.
+      audioPlayer.onended = function() {
+        if (data[String(ayah + 1)]) {
+          currentAyah = ayah + 1;
+          playAyah(currentAyah);
+        }
+      };
+    }
+
+    playPauseButton.addEventListener("click", function() {
+      if (playing) {
+        audioPlayer.pause();
+        playing = false;
+      } else {
+        audioPlayer.play();
+        playing = true;
+      }
+    });
+  </script>
+</body>
+</html>
