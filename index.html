@@ -32,16 +32,27 @@
       padding: 0.5em;
       margin: 0.5em;
     }
+    #versionInfo {
+      font-size: 16px;
+      color: #555;
+      margin-bottom: 1em;
+    }
   </style>
 </head>
 <body>
   <div id="container">
-    <h1>Quran Player</h1>
-    <form id="playerForm">
-      <label>Surah: <input type="number" id="surah" name="surah" required></label>
-      <label>Ayah: <input type="number" id="ayah" name="ayah" required></label>
-      <button type="submit">Play</button>
-    </form>
+    <!-- Start Screen with Version and Timestamp -->
+    <div id="startScreen">
+      <h1>Quran Player</h1>
+      <div id="versionInfo">
+        Version: 1.0.0 | Written on: 2025-03-03
+      </div>
+      <form id="playerForm">
+        <label>Surah: <input type="number" id="surah" name="surah" required></label>
+        <label>Ayah: <input type="number" id="ayah" name="ayah" required></label>
+        <button type="submit">Play</button>
+      </form>
+    </div>
 
     <div id="playerSection">
       <h2 id="header"></h2>
@@ -57,7 +68,7 @@
     let data = null;
     let currentAyah = 0;
     let surah = 0;
-    let ayahWords = [];  // will store the words with scheduled times (in ms)
+    let ayahWords = [];  // Array to store words with scheduled display times (ms)
     let playing = true;
     const audioPlayer = document.getElementById("audioPlayer");
     const display = document.getElementById("display");
@@ -69,8 +80,10 @@
       e.preventDefault();
       surah = parseInt(document.getElementById("surah").value);
       currentAyah = parseInt(document.getElementById("ayah").value);
-      document.getElementById("playerForm").style.display = "none";
+      // Hide the start screen and show the player section.
+      document.getElementById("startScreen").style.display = "none";
       document.getElementById("playerSection").style.display = "block";
+      // Load the surah JSON data from the embedded folder.
       loadSurahData(surah).then(() => {
         playAyah(currentAyah);
       });
@@ -92,10 +105,10 @@
       const ayahData = data[String(ayah)];
       if (!ayahData) return;
 
-      // Build an array of words with their scheduled display times (in ms)
+      // Build an array of words with scheduled display times (in ms, offset 0.1 sec).
       ayahWords = ayahData["w"].map(word => {
         return {
-          scheduledTime: (parseFloat(word["b"]) - 0.1) * 1000, // 0.1-second offset
+          scheduledTime: (parseFloat(word["b"]) - 0.1) * 1000,
           c: word["c"],
           e: word["e"]
         };
@@ -106,10 +119,10 @@
       audioPlayer.src = remoteBaseUrl + surahStr + ayahStr + ".mp3";
       audioPlayer.load();
       
-      // Wait until the audio is ready to play fully.
+      // Wait until the audio can play through before starting playback and text updates.
       audioPlayer.oncanplaythrough = function() {
         audioPlayer.play();
-        updateDisplay();  // start the text update loop
+        updateDisplay();  // Start the text update loop.
       };
 
       // Pre-buffer the next three ayahs if available.
@@ -131,7 +144,7 @@
     }
 
     function updateDisplay() {
-      // Update the displayed text based on the current audio time.
+      // Update displayed text based on current audio time.
       let currentTimeMs = audioPlayer.currentTime * 1000;
       let newIndex = -1;
       for (let i = 0; i < ayahWords.length; i++) {
