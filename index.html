@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <!-- Ensure proper scaling on mobile devices -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quran Player on GitHub Pages</title>
   <style>
-    /* Reset some defaults */
+    /* Reset defaults */
     html, body {
       margin: 0;
       padding: 0;
@@ -25,7 +26,7 @@
       margin: auto;
       padding: 1em;
     }
-    /* Version info & header */
+    /* Version info and header styling */
     #versionInfo {
       font-size: 1rem;
       color: #555;
@@ -59,20 +60,40 @@
     /* Player section styling */
     #display {
       margin: 1em 0;
-      font-size: 5vw; /* 5% of viewport width */
-      min-font-size: 30px;
+      /* Use viewport width for scaling, but the Arabic text will be doubled via classes */
+      font-size: 5vw;
       line-height: 1.2;
       word-wrap: break-word;
       white-space: normal;
+    }
+    /* Arabic text: double size relative to the base font but capped on larger screens */
+    #display .arabic {
+      font-size: 2em;
+    }
+    #display .english {
+      font-size: 1em;
     }
     #playPause {
       font-size: 1.2rem;
       padding: 0.5em 1em;
     }
-    /* Make the form stack vertically on narrow screens */
+    /* Media query for small screens: stack form fields vertically */
     @media (max-width: 600px) {
       form {
         flex-direction: column;
+      }
+      /* Increase the base display font size for readability on small devices */
+      #display {
+        font-size: 8vw;
+      }
+    }
+    /* Media query for desktop: limit Arabic text size to 50px if calculated value is larger */
+    @media (min-width: 800px) {
+      #display .arabic {
+        font-size: 50px;
+      }
+      #display .english {
+        font-size: 25px;
       }
     }
   </style>
@@ -83,7 +104,7 @@
     <div id="startScreen">
       <h1>Quran Player</h1>
       <div id="versionInfo">
-        Version: 1.0.0 | Written on: 2025-03-03
+        <!-- Version and timestamp will be injected by JavaScript -->
       </div>
       <form id="playerForm">
         <label>
@@ -108,11 +129,20 @@
   </div>
 
   <script>
+    // Set version info with timestamp in Australia/Sydney timezone.
+    const VERSION = "1.0.0";
+    // Use Intl.DateTimeFormat with timeZone "Australia/Sydney" to get date and time.
+    const options = { timeZone: 'Australia/Sydney', year: 'numeric', month: '2-digit', day: '2-digit', 
+                      hour: '2-digit', minute: '2-digit', second: '2-digit' };
+    const formatter = new Intl.DateTimeFormat([], options);
+    const timestamp = formatter.format(new Date());
+    document.getElementById("versionInfo").innerText = `Version: ${VERSION} | Written on: ${timestamp}`;
+
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
     let data = null;
     let currentAyah = 0;
     let surah = 0;
-    let ayahWords = [];  // Array to store words with scheduled display times (ms)
+    let ayahWords = [];  // Array of word objects with scheduled display times (in ms)
     let playing = true;
     const audioPlayer = document.getElementById("audioPlayer");
     const display = document.getElementById("display");
@@ -149,7 +179,7 @@
       const ayahData = data[String(ayah)];
       if (!ayahData) return;
 
-      // Build an array of words with scheduled display times (in ms, with a 0.1 sec offset).
+      // Build an array of words with scheduled display times (in ms, using a 0.1 sec offset).
       ayahWords = ayahData["w"].map(word => ({
         scheduledTime: (parseFloat(word["b"]) - 0.1) * 1000,
         c: word["c"],
@@ -164,7 +194,7 @@
       // Wait until the audio can play through before starting playback and text updates.
       audioPlayer.oncanplaythrough = function() {
         audioPlayer.play();
-        updateDisplay();  // Start the text update loop.
+        updateDisplay();  // Start the update loop.
       };
 
       // Pre-buffer the next three ayahs if available.
@@ -186,7 +216,7 @@
     }
 
     function updateDisplay() {
-      // Update displayed text based on current audio time.
+      // Continuously update the displayed text based on the current audio time.
       let currentTimeMs = audioPlayer.currentTime * 1000;
       let newIndex = -1;
       for (let i = 0; i < ayahWords.length; i++) {
@@ -199,9 +229,10 @@
       if (newIndex !== lastDisplayedIndex && newIndex >= 0) {
         lastDisplayedIndex = newIndex;
         let word = ayahWords[newIndex];
-        display.innerHTML = "Index: " + ("000" + (newIndex + 1)).slice(-3) +
-                            "<br>" + word.c +
-                            "<br>" + word.e;
+        // Use spans with classes for Arabic and English.
+        display.innerHTML = "Index: " + ("000" + (newIndex + 1)).slice(-3) + "<br>" +
+                            "<span class='arabic'>" + word.c + "</span><br>" +
+                            "<span class='english'>" + word.e + "</span>";
       }
       requestAnimationFrame(updateDisplay);
     }
