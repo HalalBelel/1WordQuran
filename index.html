@@ -12,21 +12,20 @@
     body {
       font-family: "Courier New", monospace;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
       text-align: center;
       background: #f0f0f0;
     }
+    #container {
+      width: 90%;
+    }
     #display {
       margin: 1em 0;
       font-size: 50px;
-      text-align: center;
     }
     #playerSection {
       display: none;
-      width: 100%;
-      text-align: center;
     }
     input, button {
       font-size: 20px;
@@ -36,19 +35,21 @@
   </style>
 </head>
 <body>
-  <h1>Quran Player</h1>
-  <form id="playerForm">
-    <label>Surah: <input type="number" id="surah" name="surah" required></label>
-    <label>Ayah: <input type="number" id="ayah" name="ayah" required></label>
-    <button type="submit">Play</button>
-  </form>
+  <div id="container">
+    <h1>Quran Player</h1>
+    <form id="playerForm">
+      <label>Surah: <input type="number" id="surah" name="surah" required></label>
+      <label>Ayah: <input type="number" id="ayah" name="ayah" required></label>
+      <button type="submit">Play</button>
+    </form>
 
-  <div id="playerSection">
-    <h2 id="header"></h2>
-    <div id="display"></div>
-    <button id="playPause">Play/Pause</button>
-    <br>
-    <audio id="audioPlayer" controls></audio>
+    <div id="playerSection">
+      <h2 id="header"></h2>
+      <div id="display"></div>
+      <button id="playPause">Pause</button>
+      <br>
+      <audio id="audioPlayer" controls></audio>
+    </div>
   </div>
 
   <script>
@@ -56,21 +57,20 @@
     let data = null;
     let currentAyah = 0;
     let surah = 0;
-    let wordTimers = [];
+    let ayahWords = [];  // will store the words with scheduled times (in ms)
     let playing = true;
     const audioPlayer = document.getElementById("audioPlayer");
     const display = document.getElementById("display");
     const header = document.getElementById("header");
     const playPauseButton = document.getElementById("playPause");
+    let lastDisplayedIndex = -1;
 
     document.getElementById("playerForm").addEventListener("submit", function(e) {
       e.preventDefault();
       surah = parseInt(document.getElementById("surah").value);
       currentAyah = parseInt(document.getElementById("ayah").value);
-      // Hide form and show the player section.
       document.getElementById("playerForm").style.display = "none";
       document.getElementById("playerSection").style.display = "block";
-      // Load the surah JSON data from the embedded folder.
       loadSurahData(surah).then(() => {
         playAyah(currentAyah);
       });
@@ -87,30 +87,29 @@
 
     function playAyah(ayah) {
       header.innerText = `Surah ${("000" + surah).slice(-3)}, Ayah ${("000" + ayah).slice(-3)}`;
-      // Clear any existing timers.
-      wordTimers.forEach(timer => clearTimeout(timer));
-      wordTimers = [];
-      
       const surahStr = ("000" + surah).slice(-3);
       const ayahStr = ("000" + ayah).slice(-3);
-      // Set the audio source to the remote URL.
+      const ayahData = data[String(ayah)];
+      if (!ayahData) return;
+
+      // Build an array of words with their scheduled display times (in ms)
+      ayahWords = ayahData["w"].map(word => {
+        return {
+          scheduledTime: (parseFloat(word["b"]) - 0.1) * 1000, // 0.1-second offset
+          c: word["c"],
+          e: word["e"]
+        };
+      });
+      lastDisplayedIndex = -1;
+
+      // Set the audio source.
       audioPlayer.src = remoteBaseUrl + surahStr + ayahStr + ".mp3";
       audioPlayer.load();
       
-      // Wait until the audio can play through before scheduling word display.
+      // Wait until the audio is ready to play fully.
       audioPlayer.oncanplaythrough = function() {
         audioPlayer.play();
-        const ayahData = data[String(ayah)];
-        if (!ayahData) return;
-        ayahData["w"].forEach((word, index) => {
-          let targetTimeMs = (parseFloat(word["b"]) - 0.4) * 1000;
-          let timer = setTimeout(() => {
-            display.innerHTML = "Index: " + surahStr + ":" + ayahStr + ":" + ("000" + (index + 1)).slice(-3) +
-                                "<br>" + word["c"] +
-                                "<br>" + word["e"];
-          }, targetTimeMs);
-          wordTimers.push(timer);
-        });
+        updateDisplay();  // start the text update loop
       };
 
       // Pre-buffer the next three ayahs if available.
@@ -131,16 +130,38 @@
       };
     }
 
+    function updateDisplay() {
+      // Update the displayed text based on the current audio time.
+      let currentTimeMs = audioPlayer.currentTime * 1000;
+      let newIndex = -1;
+      for (let i = 0; i < ayahWords.length; i++) {
+        if (ayahWords[i].scheduledTime <= currentTimeMs) {
+          newIndex = i;
+        } else {
+          break;
+        }
+      }
+      if (newIndex !== lastDisplayedIndex && newIndex >= 0) {
+        lastDisplayedIndex = newIndex;
+        let word = ayahWords[newIndex];
+        display.innerHTML = "Index: " + ("000" + (newIndex + 1)).slice(-3) +
+                            "<br>" + word.c +
+                            "<br>" + word.e;
+      }
+      requestAnimationFrame(updateDisplay);
+    }
+
     playPauseButton.addEventListener("click", function() {
       if (playing) {
         audioPlayer.pause();
+        playPauseButton.innerText = "Play";
         playing = false;
       } else {
         audioPlayer.play();
+        playPauseButton.innerText = "Pause";
         playing = true;
       }
     });
   </script>
 </body>
 </html>
-
