@@ -60,7 +60,7 @@
     /* Player section styling */
     #display {
       margin: 1em 0;
-      /* Use viewport width for scaling, but the Arabic text will be doubled via classes */
+      /* Use viewport width for scaling; Arabic text is doubled via classes */
       font-size: 5vw;
       line-height: 1.2;
       word-wrap: break-word;
@@ -100,11 +100,11 @@
 </head>
 <body>
   <div id="container">
-    <!-- Start Screen with Version and Timestamp -->
+    <!-- Start Screen with Version and Static Timestamp -->
     <div id="startScreen">
       <h1>Quran Player</h1>
       <div id="versionInfo">
-        <!-- Version and timestamp will be injected by JavaScript -->
+        Version: 1.0.0 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
       </div>
       <form id="playerForm">
         <label>
@@ -129,15 +129,6 @@
   </div>
 
   <script>
-    // Set version info with timestamp in Australia/Sydney timezone.
-    const VERSION = "1.0.0";
-    // Use Intl.DateTimeFormat with timeZone "Australia/Sydney" to get date and time.
-    const options = { timeZone: 'Australia/Sydney', year: 'numeric', month: '2-digit', day: '2-digit', 
-                      hour: '2-digit', minute: '2-digit', second: '2-digit' };
-    const formatter = new Intl.DateTimeFormat([], options);
-    const timestamp = formatter.format(new Date());
-    document.getElementById("versionInfo").innerText = `Version: ${VERSION} | Written on: ${timestamp}`;
-
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
     let data = null;
     let currentAyah = 0;
@@ -229,7 +220,7 @@
       if (newIndex !== lastDisplayedIndex && newIndex >= 0) {
         lastDisplayedIndex = newIndex;
         let word = ayahWords[newIndex];
-        // Use spans with classes for Arabic and English.
+        // Display Arabic text (in a span with class 'arabic') and English text (class 'english')
         display.innerHTML = "Index: " + ("000" + (newIndex + 1)).slice(-3) + "<br>" +
                             "<span class='arabic'>" + word.c + "</span><br>" +
                             "<span class='english'>" + word.e + "</span>";
