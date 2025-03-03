@@ -19,12 +19,12 @@
       align-items: center;
       justify-content: center;
       text-align: center;
+      padding: 1em;
     }
     #container {
       width: 90%;
       max-width: 800px;
       margin: auto;
-      padding: 1em;
     }
     /* Version info and header styling */
     #versionInfo {
@@ -60,17 +60,20 @@
     /* Player section styling */
     #display {
       margin: 1em 0;
-      /* Use viewport width for scaling; Arabic text is doubled via classes */
+      /* Base font size uses viewport width for scaling */
       font-size: 5vw;
       line-height: 1.2;
       word-wrap: break-word;
       white-space: normal;
     }
-    /* Arabic text: double size relative to the base font but capped on larger screens */
-    #display .arabic {
-      font-size: 2em;
+    /* Containers for Arabic and English text */
+    .arabic-container {
+      min-height: 70px;  /* Fixed height based on max Arabic font size */
     }
-    #display .english {
+    .arabic {
+      font-size: 2em; /* Will be capped by media queries */
+    }
+    .english {
       font-size: 1em;
     }
     #playPause {
@@ -87,13 +90,13 @@
         font-size: 8vw;
       }
     }
-    /* Media query for desktop: limit Arabic text size to 50px if calculated value is larger */
+    /* Media query for desktop: limit Arabic text size to 70px and English to 35px */
     @media (min-width: 800px) {
-      #display .arabic {
-        font-size: 50px;
+      .arabic {
+        font-size: 70px;
       }
-      #display .english {
-        font-size: 25px;
+      .english {
+        font-size: 35px;
       }
     }
   </style>
@@ -121,7 +124,12 @@
 
     <div id="playerSection" style="display:none;">
       <h2 id="header"></h2>
-      <div id="display"></div>
+      <div id="display">
+        <div class="arabic-container">
+          <span id="arabicText" class="arabic"></span>
+        </div>
+        <div id="englishText" class="english"></div>
+      </div>
       <button id="playPause">Pause</button>
       <br>
       <audio id="audioPlayer" controls></audio>
@@ -136,7 +144,8 @@
     let ayahWords = [];  // Array of word objects with scheduled display times (in ms)
     let playing = true;
     const audioPlayer = document.getElementById("audioPlayer");
-    const display = document.getElementById("display");
+    const arabicText = document.getElementById("arabicText");
+    const englishText = document.getElementById("englishText");
     const header = document.getElementById("header");
     const playPauseButton = document.getElementById("playPause");
     let lastDisplayedIndex = -1;
@@ -220,10 +229,9 @@
       if (newIndex !== lastDisplayedIndex && newIndex >= 0) {
         lastDisplayedIndex = newIndex;
         let word = ayahWords[newIndex];
-        // Display Arabic text (in a span with class 'arabic') and English text (class 'english')
-        display.innerHTML = "Index: " + ("000" + (newIndex + 1)).slice(-3) + "<br>" +
-                            "<span class='arabic'>" + word.c + "</span><br>" +
-                            "<span class='english'>" + word.e + "</span>";
+        // Display the index, then Arabic in its container, and then English in its container.
+        arabicText.innerHTML = word.c;
+        englishText.innerHTML = word.e;
       }
       requestAnimationFrame(updateDisplay);
     }
