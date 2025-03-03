@@ -2,8 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quran Player on GitHub Pages</title>
   <style>
+    /* Reset some defaults */
     html, body {
       margin: 0;
       padding: 0;
@@ -11,31 +13,67 @@
     }
     body {
       font-family: "Courier New", monospace;
+      background: #f0f0f0;
       display: flex;
       align-items: center;
       justify-content: center;
       text-align: center;
-      background: #f0f0f0;
     }
     #container {
       width: 90%;
+      max-width: 800px;
+      margin: auto;
+      padding: 1em;
     }
-    #display {
-      margin: 1em 0;
-      font-size: 50px;
-    }
-    #playerSection {
-      display: none;
-    }
-    input, button {
-      font-size: 20px;
-      padding: 0.5em;
-      margin: 0.5em;
-    }
+    /* Version info & header */
     #versionInfo {
-      font-size: 16px;
+      font-size: 1rem;
       color: #555;
       margin-bottom: 1em;
+    }
+    h1, h2 {
+      margin: 0.5em 0;
+    }
+    /* Start screen styling */
+    #startScreen {
+      margin-bottom: 2em;
+    }
+    form {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 1em;
+    }
+    form label {
+      font-size: 1.2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    input, button {
+      font-size: 1.2rem;
+      padding: 0.5em;
+      margin-top: 0.3em;
+    }
+    /* Player section styling */
+    #display {
+      margin: 1em 0;
+      font-size: 5vw; /* 5% of viewport width */
+      min-font-size: 30px;
+      line-height: 1.2;
+      word-wrap: break-word;
+      white-space: normal;
+    }
+    #playPause {
+      font-size: 1.2rem;
+      padding: 0.5em 1em;
+    }
+    /* Make the form stack vertically on narrow screens */
+    @media (max-width: 600px) {
+      form {
+        flex-direction: column;
+      }
     }
   </style>
 </head>
@@ -48,13 +86,19 @@
         Version: 1.0.0 | Written on: 2025-03-03
       </div>
       <form id="playerForm">
-        <label>Surah: <input type="number" id="surah" name="surah" required></label>
-        <label>Ayah: <input type="number" id="ayah" name="ayah" required></label>
+        <label>
+          Surah:
+          <input type="number" id="surah" name="surah" required>
+        </label>
+        <label>
+          Ayah:
+          <input type="number" id="ayah" name="ayah" required>
+        </label>
         <button type="submit">Play</button>
       </form>
     </div>
 
-    <div id="playerSection">
+    <div id="playerSection" style="display:none;">
       <h2 id="header"></h2>
       <div id="display"></div>
       <button id="playPause">Pause</button>
@@ -105,20 +149,18 @@
       const ayahData = data[String(ayah)];
       if (!ayahData) return;
 
-      // Build an array of words with scheduled display times (in ms, offset 0.1 sec).
-      ayahWords = ayahData["w"].map(word => {
-        return {
-          scheduledTime: (parseFloat(word["b"]) - 0.1) * 1000,
-          c: word["c"],
-          e: word["e"]
-        };
-      });
+      // Build an array of words with scheduled display times (in ms, with a 0.1 sec offset).
+      ayahWords = ayahData["w"].map(word => ({
+        scheduledTime: (parseFloat(word["b"]) - 0.1) * 1000,
+        c: word["c"],
+        e: word["e"]
+      }));
       lastDisplayedIndex = -1;
 
       // Set the audio source.
       audioPlayer.src = remoteBaseUrl + surahStr + ayahStr + ".mp3";
       audioPlayer.load();
-      
+
       // Wait until the audio can play through before starting playback and text updates.
       audioPlayer.oncanplaythrough = function() {
         audioPlayer.play();
