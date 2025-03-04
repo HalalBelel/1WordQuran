@@ -55,41 +55,49 @@
       display: none;
       position: relative;
     }
-    /* Fixed Arabic Text: always 70px, centered horizontally and fixed 20% from the top */
+    /* The Arabic text is placed near the top (20% from the top) */
     #fixedArabic {
       position: fixed;
       top: 20%;
       left: 50%;
       transform: translateX(-50%);
-      height: 70px;
-      line-height: 70px;
-      text-align: center;
-      width: 100%;
+      /* Let the container wrap text if it's too narrow */
+      max-width: 90%;
+      margin: 0 auto;
+      word-wrap: break-word;
       pointer-events: none;
     }
     .arabic {
-      font-size: 70px;  /* Hardcoded 70px for all platforms */
-    }
-    /* Translation container is in normal flow and immediately below a placeholder */
-    #translationContainer {
-      margin-top: calc(20% + 70px); /* starts immediately below the fixed Arabic text */
+      font-size: 70px; /* Hard-coded 70px for all platforms */
+      display: inline-block; 
       text-align: center;
-      padding: 0 1em;
+      line-height: 1.1;
+    }
+    /* Translation: 10px below the Arabic container */
+    #translationContainer {
+      margin-top: calc(20% + 70px + 10px);
       word-wrap: break-word;
       white-space: normal;
+      padding: 0 1em;
     }
-    /* Player controls */
+    .english {
+      font-size: 35px;
+      display: block;
+      margin-top: 0.5em;
+    }
     #controls {
-      text-align: center;
       margin-top: 1em;
     }
     #playPause {
       font-size: 1.2rem;
       padding: 0.5em 1em;
     }
-    /* English translation: fixed size at 35px */
-    .english {
-      font-size: 35px;
+    /* Info line for the index, placed below controls */
+    #infoLine {
+      margin-top: 1em;
+      font-size: 1.2rem;
+      color: #333;
+      white-space: pre; /* So \n works if desired */
     }
     /* For narrow screens, stack form fields vertically */
     @media (max-width:600px) {
@@ -105,7 +113,7 @@
     <div id="startScreen">
       <h1>Quran Player</h1>
       <div id="versionInfo">
-        Version: 3 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
+        Version: 5 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
       </div>
       <form id="playerForm">
         <label>
@@ -122,11 +130,11 @@
 
     <!-- Player Section -->
     <div id="playerSection">
-      <!-- Fixed Arabic Text -->
+      <!-- Fixed Arabic Text (70px) -->
       <div id="fixedArabic">
         <span id="arabicText" class="arabic"></span>
       </div>
-      <!-- Translation: appears immediately below the fixed Arabic text -->
+      <!-- Translation immediately below the Arabic text -->
       <div id="translationContainer">
         <span id="englishText" class="english"></span>
       </div>
@@ -135,13 +143,15 @@
         <br>
         <audio id="audioPlayer" controls></audio>
       </div>
+      <!-- Display index/verse number below the controls -->
+      <div id="infoLine"></div>
     </div>
   </div>
 
   <script>
-    // VERSION constant defined at the top for easy updating.
+    // VERSION constant defined at the top for easy updating
     const VERSION = "3";
-    
+
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
     let data = null;
     let currentAyah = 0;
@@ -151,7 +161,7 @@
     const audioPlayer = document.getElementById("audioPlayer");
     const arabicText = document.getElementById("arabicText");
     const englishText = document.getElementById("englishText");
-    const header = document.getElementById("header");
+    const infoLine = document.getElementById("infoLine");
     const playPauseButton = document.getElementById("playPause");
     let lastDisplayedIndex = -1;
 
@@ -159,7 +169,7 @@
       e.preventDefault();
       surah = parseInt(document.getElementById("surah").value);
       currentAyah = parseInt(document.getElementById("ayah").value);
-      // Hide the start screen and show the player section.
+      // Hide the start screen and show the player section
       document.getElementById("startScreen").style.display = "none";
       document.getElementById("playerSection").style.display = "block";
       loadSurahData(surah).then(() => {
@@ -177,32 +187,30 @@
     }
 
     function playAyah(ayah) {
-      // Update header text (optional, if you want to display current surah/ayah)
-      //header.innerText = `Surah ${("000" + surah).slice(-3)}, Ayah ${("000" + ayah).slice(-3)}`;
       const surahStr = ("000" + surah).slice(-3);
       const ayahStr = ("000" + ayah).slice(-3);
       const ayahData = data[String(ayah)];
       if (!ayahData) return;
 
       // Build an array of words with scheduled display times (in ms, using a 0.1 sec offset).
-      ayahWords = ayahData["w"].map(word => ({
+      ayahWords = ayahData["w"].map((word) => ({
         scheduledTime: (parseFloat(word["b"]) - 0.1) * 1000,
         c: word["c"],
         e: word["e"]
       }));
       lastDisplayedIndex = -1;
 
-      // Set the audio source.
+      // Set the audio source
       audioPlayer.src = remoteBaseUrl + surahStr + ayahStr + ".mp3";
       audioPlayer.load();
 
-      // Wait until the audio can play through before starting playback and text updates.
+      // Wait until the audio can play through before starting playback and text updates
       audioPlayer.oncanplaythrough = function() {
         audioPlayer.play();
-        updateDisplay(); // Start the update loop.
+        updateDisplay(); // Start the update loop
       };
 
-      // Pre-buffer the next three ayahs if available.
+      // Pre-buffer the next three ayahs if available
       for (let next = ayah + 1; next <= ayah + 3; next++) {
         if (data[String(next)]) {
           let nextAyahStr = ("000" + next).slice(-3);
@@ -211,7 +219,7 @@
         }
       }
 
-      // When the current ayah ends, play the next one if available.
+      // When the current ayah ends, play the next one if available
       audioPlayer.onended = function() {
         if (data[String(ayah + 1)]) {
           currentAyah = ayah + 1;
@@ -221,7 +229,7 @@
     }
 
     function updateDisplay() {
-      // Continuously update the displayed text based on the current audio time.
+      // Continuously update the displayed text based on the current audio time
       let currentTimeMs = audioPlayer.currentTime * 1000;
       let newIndex = -1;
       for (let i = 0; i < ayahWords.length; i++) {
@@ -234,9 +242,15 @@
       if (newIndex !== lastDisplayedIndex && newIndex >= 0) {
         lastDisplayedIndex = newIndex;
         let word = ayahWords[newIndex];
-        // Update the fixed Arabic text and the translation immediately below.
+        // Update the fixed Arabic text and the translation
         arabicText.innerHTML = word.c;
         englishText.innerHTML = word.e;
+
+        // Also update the index below the controls
+        let surahStr = ("000" + surah).slice(-3);
+        let ayahStr = ("000" + currentAyah).slice(-3);
+        let wordIndexStr = ("000" + (newIndex + 1)).slice(-3);
+        infoLine.textContent = `Index: ${surahStr}:${ayahStr}:${wordIndexStr}`;
       }
       requestAnimationFrame(updateDisplay);
     }
