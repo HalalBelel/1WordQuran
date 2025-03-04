@@ -2,21 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- Ensure proper scaling on mobile devices -->
+  <!-- Mobile scaling -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quran Player on GitHub Pages</title>
   <style>
-    /* We use a CSS variable for the header height. */
     :root {
-      --header-height: 90px;
+      /* Increased header height to 120px */
+      --header-height: 120px;
     }
 
-    /* Remove normal page scrolling; we’ll scroll inside the translation container. */
+    /* No normal page scrolling; we’ll scroll inside a container */
     html, body {
       margin: 0;
       padding: 0;
       height: 100%;
-      overflow: hidden; /* So pinned Arabic never overlaps on scroll. */
+      overflow: hidden;
     }
     body {
       font-family: "Courier New", monospace;
@@ -24,7 +24,7 @@
       text-align: center;
     }
 
-    /* Container for everything */
+    /* Main container filling the screen */
     #container {
       width: 90%;
       max-width: 800px;
@@ -33,10 +33,9 @@
       height: 100%;
     }
 
-    /* Start Screen */
+    /* Start screen below the header so it’s not hidden initially */
     #startScreen {
       margin-top: calc(var(--header-height) + 10px);
-      /* So it’s not hidden behind the fixed header on load */
     }
     #versionInfo {
       font-size: 1rem;
@@ -62,16 +61,16 @@
       margin-top: 0.3em;
     }
 
-    /* Player Section */
+    /* Player section hidden until user submits form */
     #playerSection {
       display: none;
       position: relative;
       height: 100%;
     }
 
-    /* Fixed Header (90px tall), with two “rows”:  
-       1) Audio controls  
-       2) Index (truncated) */
+    /* Fixed header (120px tall) with two lines:
+       1) Audio controls
+       2) Index display, truncated if too wide */
     #headerControls {
       position: fixed;
       top: 0;
@@ -84,47 +83,41 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       z-index: 10;
       display: flex;
-      flex-direction: column; /* stack audio + index vertically */
+      flex-direction: column; /* stack audio and index vertically */
       align-items: center;
       justify-content: center;
-      padding: 0.5em;
       box-sizing: border-box;
-      overflow: hidden; /* ensures we stay at 90px total height */
+      padding: 0.5em;
     }
-
-    /* First row: audio controls */
+    /* Audio row on top */
     #audioRow {
       margin-bottom: 0.3em;
-      /* If you want to ensure the audio is truncated or not, you can add ellipsis here,  
-         but typically the browser shrinks the audio control if needed. */
     }
-
-    /* Second row: index display, truncated if too long */
+    /* Index row below audio, truncated horizontally if needed */
     #indexDisplay {
       font-size: 1.2rem;
       color: #333;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      width: 90%; /* If the text is longer than 90% of header width, it’ll be truncated */
+      width: 95%;
       box-sizing: border-box;
     }
 
-    /* 
-      Arabic text pinned at 40% of the remaining screen height  
-      after subtracting the header.  
+    /*
+      Arabic text pinned at 40% of the leftover screen height
+      after subtracting the 120px header.
 
-      Calculation:  
-        (100vh - var(--header-height)) is the “remaining” height.  
-        0.4 * that remainder.  
-        Then we add var(--header-height) to offset from the top.
+      Calculation:
+        leftover = (100vh - var(--header-height))
+        arabicTop = var(--header-height) + 0.4 * leftover
     */
     #fixedArabic {
       position: fixed;
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      height: 60px; /* Arabic line height is 60px now */
+      height: 60px; /* for 60px font */
       top: calc(
         var(--header-height) + 
         0.4 * (100vh - var(--header-height))
@@ -138,8 +131,8 @@
       white-space: normal;
     }
 
-    /* Scrollable container for translation below pinned Arabic.  
-       Start 10px below the Arabic block. */
+    /* Scrollable translation container below pinned Arabic.
+       Start 20px below the Arabic block. */
     #translationContainer {
       position: absolute;
       left: 50%;
@@ -147,9 +140,9 @@
       width: 90%;
       top: calc(
         var(--header-height) + 
-        0.4 * (100vh - var(--header-height)) + 60px + 10px
+        0.4 * (100vh - var(--header-height)) + 60px + 20px
       );
-      bottom: 0; /* fill the rest of the screen */
+      bottom: 0;
       overflow-y: auto;
       text-align: center;
       word-wrap: break-word;
@@ -160,7 +153,7 @@
       line-height: 30px;
     }
 
-    /* For narrow screens, stack form fields vertically */
+    /* On narrow screens, stack form fields vertically */
     @media (max-width: 600px) {
       form {
         flex-direction: column;
@@ -174,16 +167,16 @@
     <div id="startScreen">
       <h1>Quran Player</h1>
       <div id="versionInfo">
-        Version: 10 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
+        Version: 2 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
       </div>
       <form id="playerForm">
         <label>
           Surah:
-          <input type="number" id="surah" name="surah" required>
+          <input type="number" id="surah" required>
         </label>
         <label>
           Ayah:
-          <input type="number" id="ayah" name="ayah" required>
+          <input type="number" id="ayah" required>
         </label>
         <button type="submit">Play</button>
       </form>
@@ -191,7 +184,7 @@
 
     <!-- Player Section -->
     <div id="playerSection">
-      <!-- Fixed header (90px) with 2 lines: audio row, index row -->
+      <!-- Fixed header: 2 lines (audio, then index) -->
       <div id="headerControls">
         <div id="audioRow">
           <audio id="audioPlayer" controls></audio>
@@ -199,7 +192,7 @@
         <div id="indexDisplay"></div>
       </div>
 
-      <!-- Arabic pinned at 40% of remaining height after header -->
+      <!-- Pinned Arabic at ~40% of leftover screen height -->
       <div id="fixedArabic">
         <span id="arabicText" class="arabic"></span>
       </div>
@@ -229,7 +222,7 @@
       e.preventDefault();
       surah = parseInt(document.getElementById("surah").value);
       currentAyah = parseInt(document.getElementById("ayah").value);
-      // Hide start screen, show player section
+      // Hide start screen, show player
       document.getElementById("startScreen").style.display = "none";
       document.getElementById("playerSection").style.display = "block";
       loadSurahData(surah).then(() => {
@@ -242,7 +235,7 @@
         const response = await fetch(`json/${surah}.json`);
         data = await response.json();
       } catch (err) {
-        console.error("Error loading JSON data", err);
+        console.error("Error loading JSON data:", err);
       }
     }
 
@@ -252,6 +245,7 @@
       const ayahData = data[String(ayah)];
       if (!ayahData) return;
 
+      // Build array of words with scheduled times
       ayahWords = ayahData["w"].map(word => ({
         scheduledTime: (parseFloat(word["b"]) - 0.1) * 1000,
         c: word["c"],
@@ -267,7 +261,7 @@
         updateDisplay();
       };
 
-      // Pre-buffer next three ayahs if available
+      // Pre-buffer next 3 ayahs if available
       for (let next = ayah + 1; next <= ayah + 3; next++) {
         if (data[String(next)]) {
           let nextAyahStr = ("000" + next).slice(-3);
@@ -276,6 +270,7 @@
         }
       }
 
+      // When this ayah ends, move on if possible
       audioPlayer.onended = function() {
         if (data[String(ayah + 1)]) {
           currentAyah = ayah + 1;
@@ -296,7 +291,7 @@
       }
       if (newIndex !== lastDisplayedIndex && newIndex >= 0) {
         lastDisplayedIndex = newIndex;
-        const word = ayahWords[newIndex];
+        let word = ayahWords[newIndex];
         arabicText.innerHTML = word.c;
         englishText.innerHTML = word.e;
 
