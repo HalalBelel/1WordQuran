@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- Mobile scaling -->
+  <!-- Ensure proper scaling on mobile devices -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quran Player on GitHub Pages</title>
   <style>
-    /* Reset */
+    /* Reset defaults */
     html, body {
       margin: 0;
       padding: 0;
@@ -16,7 +16,7 @@
       font-family: "Courier New", monospace;
       background: #f0f0f0;
       text-align: center;
-      padding: 1em;
+      padding-top: 70px; /* Leave room for fixed header controls */
     }
     #container {
       width: 90%;
@@ -24,7 +24,7 @@
       margin: auto;
       position: relative;
     }
-    /* Start Screen */
+    /* Start screen styling */
     #startScreen {
       margin-bottom: 2em;
     }
@@ -51,58 +51,67 @@
       padding: 0.5em;
       margin-top: 0.3em;
     }
-    /* Player Section */
-    #playerSection {
-      display: none;
-      position: relative;
+    /* Fixed header controls positioned at top */
+    #headerControls {
+      position: fixed;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      height: 70px;  /* fixed height for controls */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #ffffff;
+      z-index: 10;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    /* Fixed Arabic block */
+    #headerControls button,
+    #headerControls audio {
+      margin: 0 0.5em;
+    }
+    /* Fixed Arabic text, placed at 40% from the top */
     #fixedArabic {
       position: fixed;
-      top: 20vh;
+      top: 40vh;
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      height: 70px; /* Fixed height */
+      height: 70px; /* Fixed height for 70px text */
       overflow-wrap: break-word;
       white-space: normal;
-      pointer-events: none; /* So it doesn't interfere with clicks */
+      pointer-events: none; /* Prevent interfering with clicks */
     }
     .arabic {
       font-size: 70px; /* Hardcoded Arabic font size */
       line-height: 70px;
     }
-    /* Main content: English translation, controls, and index.
-       It is pushed down so it always starts below the fixed Arabic block plus a 10px gap */
-    #mainContent {
-      margin-top: calc(20vh + 70px + 10px);
-    }
+    /* Translation container placed in normal flow below the fixed Arabic */
     #translationContainer {
+      margin-top: calc(40vh + 70px + 10px); /* 40vh + Arabic height + 10px gap */
+      padding: 0 1em;
+      text-align: center;
       overflow-wrap: break-word;
       white-space: normal;
-      text-align: center;
     }
     .english {
       font-size: 35px; /* Hardcoded English font size */
-      line-height: 1.2;
+      line-height: 35px;
     }
-    /* Controls */
-    #controls {
-      margin-top: 1em;
-    }
-    #playPause {
-      font-size: 1.2rem;
-      padding: 0.5em 1em;
-    }
-    /* Index display */
+    /* Index display below translation */
     #infoLine {
       margin-top: 1em;
       font-size: 1.2rem;
       color: #333;
       white-space: pre;
     }
+    /* Player Section (entire player content) */
+    #playerSection {
+      display: none;
+      position: relative;
+    }
     /* For narrow screens, stack form fields vertically */
-    @media (max-width:600px) {
+    @media (max-width: 600px) {
       form {
         flex-direction: column;
       }
@@ -111,11 +120,11 @@
 </head>
 <body>
   <div id="container">
-    <!-- Start Screen with version and timestamp -->
+    <!-- Start Screen with Version and Static Timestamp -->
     <div id="startScreen">
       <h1>Quran Player</h1>
       <div id="versionInfo">
-        Version: 3 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
+        Version: 6 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
       </div>
       <form id="playerForm">
         <label>
@@ -132,27 +141,26 @@
 
     <!-- Player Section -->
     <div id="playerSection">
+      <!-- Fixed header controls (above Arabic) -->
+      <div id="headerControls">
+        <button id="playPause">Pause</button>
+        <audio id="audioPlayer" controls></audio>
+      </div>
       <!-- Fixed Arabic text -->
       <div id="fixedArabic">
         <span id="arabicText" class="arabic"></span>
       </div>
-      <!-- Main content flows normally below the fixed Arabic text -->
-      <div id="mainContent">
-        <div id="translationContainer">
-          <span id="englishText" class="english"></span>
-        </div>
-        <div id="controls">
-          <button id="playPause">Pause</button>
-          <br>
-          <audio id="audioPlayer" controls></audio>
-        </div>
-        <div id="infoLine"></div>
+      <!-- English translation container -->
+      <div id="translationContainer">
+        <span id="englishText" class="english"></span>
       </div>
+      <!-- Index display below translation -->
+      <div id="infoLine"></div>
     </div>
   </div>
 
   <script>
-    // Version constant (for easy updating)
+    // VERSION constant for easy updating (currently "3")
     const VERSION = "3";
 
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
@@ -172,6 +180,7 @@
       e.preventDefault();
       surah = parseInt(document.getElementById("surah").value);
       currentAyah = parseInt(document.getElementById("ayah").value);
+      // Hide the start screen and show the player section.
       document.getElementById("startScreen").style.display = "none";
       document.getElementById("playerSection").style.display = "block";
       loadSurahData(surah).then(() => {
@@ -194,7 +203,7 @@
       const ayahData = data[String(ayah)];
       if (!ayahData) return;
 
-      // Build array of words with scheduled display times (0.1 sec offset)
+      // Build an array of words with scheduled display times (in ms, 0.1 sec offset)
       ayahWords = ayahData["w"].map(word => ({
         scheduledTime: (parseFloat(word["b"]) - 0.1) * 1000,
         c: word["c"],
@@ -202,17 +211,17 @@
       }));
       lastDisplayedIndex = -1;
 
-      // Set the audio source and load
+      // Set the audio source and load it
       audioPlayer.src = remoteBaseUrl + surahStr + ayahStr + ".mp3";
       audioPlayer.load();
 
-      // When audio is ready, start playback and update loop
+      // When the audio can play through, start playback and update loop
       audioPlayer.oncanplaythrough = function() {
         audioPlayer.play();
         updateDisplay();
       };
 
-      // Pre-buffer next three ayahs if available
+      // Pre-buffer the next three ayahs if available
       for (let next = ayah + 1; next <= ayah + 3; next++) {
         if (data[String(next)]) {
           let nextAyahStr = ("000" + next).slice(-3);
@@ -221,7 +230,7 @@
         }
       }
 
-      // When current ayah ends, play next if available
+      // When the current ayah ends, move to the next if available
       audioPlayer.onended = function() {
         if (data[String(ayah + 1)]) {
           currentAyah = ayah + 1;
@@ -231,6 +240,7 @@
     }
 
     function updateDisplay() {
+      // Update displayed text based on current audio time
       let currentTimeMs = audioPlayer.currentTime * 1000;
       let newIndex = -1;
       for (let i = 0; i < ayahWords.length; i++) {
@@ -243,7 +253,7 @@
       if (newIndex !== lastDisplayedIndex && newIndex >= 0) {
         lastDisplayedIndex = newIndex;
         let word = ayahWords[newIndex];
-        // Update the fixed Arabic text and the English translation
+        // Update Arabic text (fixed) and English translation
         arabicText.innerHTML = word.c;
         englishText.innerHTML = word.e;
         // Update index display below controls
