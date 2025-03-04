@@ -6,27 +6,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quran Player on GitHub Pages</title>
   <style>
-    /* Reset defaults */
+    /* Remove normal scrolling and fill the screen */
     html, body {
       margin: 0;
       padding: 0;
       height: 100%;
+      overflow: hidden; /* No page scroll */
     }
     body {
       font-family: "Courier New", monospace;
       background: #f0f0f0;
       text-align: center;
-      padding-top: 70px; /* Leave space for header */
     }
+    /* Container for everything */
     #container {
       width: 90%;
       max-width: 800px;
       margin: auto;
       position: relative;
+      height: 100%; /* Fill the screen */
     }
-    /* Start Screen Styling */
+
+    /* Start Screen */
     #startScreen {
-      margin-bottom: 2em;
+      margin-top: 80px; /* So it's not under the header on load */
     }
     #versionInfo {
       font-size: 1rem;
@@ -51,13 +54,15 @@
       padding: 0.5em;
       margin-top: 0.3em;
     }
-    /* Fixed Header: contains audio player controls and index display */
+
+    /* Fixed Header: audio + index at top */
     #headerControls {
       position: fixed;
       top: 0;
       left: 50%;
       transform: translateX(-50%);
       width: 100%;
+      max-width: 800px;
       height: 70px;
       background: #ffffff;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -66,11 +71,13 @@
       justify-content: center;
       gap: 1em;
       z-index: 10;
+      padding: 0.5em;
     }
     #indexDisplay {
       font-size: 1.2rem;
       color: #333;
     }
+
     /* Fixed Arabic text at 40% of viewport height */
     #fixedArabic {
       position: fixed;
@@ -78,33 +85,46 @@
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      height: 70px;
-      overflow-wrap: break-word;
-      white-space: normal;
-      pointer-events: none;
+      height: 70px; /* Hardcoded 70px for Arabic */
+      pointer-events: none; /* So it won't intercept clicks */
     }
     .arabic {
-      font-size: 70px; /* Hardcoded 70px */
+      font-size: 70px; /* Hardcoded 70px for Arabic text */
       line-height: 70px;
+      word-wrap: break-word;
+      white-space: normal;
     }
-    /* English translation container immediately below Arabic, with a 5px gap */
+
+    /* A scrollable container for the translation. 
+       It's absolutely positioned below the Arabic text. */
     #translationContainer {
-      margin-top: calc(40vh + 35px);
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
       width: 90%;
+      /* Start below Arabic: 40vh + 70px + small gap (10px) */
+      top: calc(40vh + 70px + 10px);
+      /* Make it fill the rest of the screen below Arabic. 
+         Subtract 80px for the top header, just in case. 
+         Adjust as needed if your device height is smaller. */
+      bottom: 0;
+      overflow-y: auto; /* Scroll inside this container */
       text-align: center;
-      padding: 0 1em;
-      overflow-wrap: break-word;
+      word-wrap: break-word;
       white-space: normal;
     }
     .english {
-      font-size: 35px; /* Hardcoded 35px */
+      font-size: 35px; /* Hardcoded 35px for translation */
       line-height: 35px;
     }
-    /* Player Section (contains the fixed header, Arabic, and translation) */
+
+    /* Player Section (header + pinned Arabic + translation) */
     #playerSection {
       display: none;
       position: relative;
+      height: 100%;
     }
+
     /* For narrow screens, stack form fields vertically */
     @media (max-width:600px) {
       form {
@@ -119,7 +139,7 @@
     <div id="startScreen">
       <h1>Quran Player</h1>
       <div id="versionInfo">
-        Version: 2 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
+        Version: 3 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
       </div>
       <form id="playerForm">
         <label>
@@ -136,16 +156,18 @@
 
     <!-- Player Section -->
     <div id="playerSection">
-      <!-- Header Controls: audio player (with native controls) and index -->
+      <!-- Fixed header controls -->
       <div id="headerControls">
         <audio id="audioPlayer" controls></audio>
         <div id="indexDisplay"></div>
       </div>
-      <!-- Fixed Arabic Text -->
+
+      <!-- Fixed Arabic text -->
       <div id="fixedArabic">
         <span id="arabicText" class="arabic"></span>
       </div>
-      <!-- English Translation Container -->
+
+      <!-- Scrollable translation container -->
       <div id="translationContainer">
         <span id="englishText" class="english"></span>
       </div>
@@ -158,12 +180,13 @@
     let data = null;
     let currentAyah = 0;
     let surah = 0;
-    let ayahWords = []; // Array of word objects with scheduled display times (in ms)
+    let ayahWords = [];
+    let lastDisplayedIndex = -1;
+
     const audioPlayer = document.getElementById("audioPlayer");
     const arabicText = document.getElementById("arabicText");
     const englishText = document.getElementById("englishText");
     const indexDisplay = document.getElementById("indexDisplay");
-    let lastDisplayedIndex = -1;
 
     document.getElementById("playerForm").addEventListener("submit", function(e) {
       e.preventDefault();
@@ -206,6 +229,7 @@
         updateDisplay();
       };
 
+      // Pre-buffer next three ayahs if available
       for (let next = ayah + 1; next <= ayah + 3; next++) {
         if (data[String(next)]) {
           let nextAyahStr = ("000" + next).slice(-3);
@@ -234,12 +258,12 @@
       }
       if (newIndex !== lastDisplayedIndex && newIndex >= 0) {
         lastDisplayedIndex = newIndex;
-        let word = ayahWords[newIndex];
+        const word = ayahWords[newIndex];
         arabicText.innerHTML = word.c;
         englishText.innerHTML = word.e;
-        let surahStr = ("000" + surah).slice(-3);
-        let ayahStr = ("000" + currentAyah).slice(-3);
-        let wordIndexStr = ("000" + (newIndex + 1)).slice(-3);
+        const surahStr = ("000" + surah).slice(-3);
+        const ayahStr = ("000" + currentAyah).slice(-3);
+        const wordIndexStr = ("000" + (newIndex + 1)).slice(-3);
         indexDisplay.textContent = `Index: ${surahStr}:${ayahStr}:${wordIndexStr}`;
       }
       requestAnimationFrame(updateDisplay);
