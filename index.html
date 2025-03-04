@@ -2,38 +2,31 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- Ensure proper scaling on mobile devices -->
+  <!-- Ensures proper scaling on mobile devices -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quran Player - Collapsible Header</title>
+  <title>Quran Player on GitHub Pages</title>
   <style>
     :root {
-      /* Expanded header height */
-      --header-expanded: 120;
-      /* Minimal header height when collapsed */
-      --header-collapsed: 40;
-      /* Default: header is expanded */
-      --current-header: 120;
-      /* Hardcoded font sizes */
-      --arabic-font: 60;
-      --english-font: 30;
-      /* Gap below Arabic text */
-      --arabic-english-gap: 20;
-      /* Percentage of leftover space (after header) at which Arabic is pinned */
-      --arabic-percent: 0.3;
+      /* The header's height. Increase if needed. */
+      --header-height: 100px;
+      /* We'll update this in JS to match window.innerHeight. */
+      --app-height: 100vh;
     }
 
-    /* Remove normal page scrolling; we'll scroll in translation container */
+    /* Disable normal page scrolling; we use scroll containers. */
     html, body {
       margin: 0;
       padding: 0;
       height: 100%;
-      overflow: hidden;
+      overflow: hidden; /* So pinned Arabic never overlaps on scroll. */
+    }
+    body {
       font-family: "Courier New", monospace;
       background: #f0f0f0;
       text-align: center;
     }
 
-    /* Container for all content */
+    /* Main container takes the entire screen height. */
     #container {
       width: 90%;
       max-width: 800px;
@@ -42,9 +35,13 @@
       height: 100%;
     }
 
-    /* Start Screen Styling */
+    /* Start screen is scrollable if it overflows. */
     #startScreen {
-      /* Its top margin will be set dynamically based on header height */
+      position: relative;
+      margin-top: calc(var(--header-height) + 10px);
+      /* Fill the rest of the screen below the header. */
+      height: calc(var(--app-height) - var(--header-height) - 20px);
+      overflow-y: auto;
     }
     #versionInfo {
       font-size: 1rem;
@@ -70,14 +67,14 @@
       margin-top: 0.3em;
     }
 
-    /* Player Section (hidden until form is submitted) */
+    /* Player section hidden until user submits the form. */
     #playerSection {
       display: none;
       position: relative;
       height: 100%;
     }
 
-    /* Fixed Header (collapsible) */
+    /* Single-row header with audio on left, index on right. */
     #headerControls {
       position: fixed;
       top: 0;
@@ -85,75 +82,85 @@
       transform: translateX(-50%);
       width: 100%;
       max-width: 800px;
-      /* Height is set dynamically via JS (expanded: 120, collapsed: 40) */
-      height: var(--current-header);
+      height: var(--header-height);
       background: #ffffff;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       z-index: 10;
-      box-sizing: border-box;
-      padding: 0.5em;
       display: flex;
-      flex-direction: column;
+      flex-wrap: nowrap;        /* single row */
       align-items: center;
-      justify-content: center;
-      position: fixed;
+      justify-content: space-between;
+      box-sizing: border-box;
+      padding: 0.5em 1em;
     }
-    /* Audio controls row */
-    #audioRow {
-      margin-bottom: 0.3em;
+
+    /* Audio on the left. */
+    #audioPlayer {
+      flex-shrink: 0; /* Don't shrink the audio player. */
+      margin-right: 1em;
     }
-    /* Index row, truncated if too wide */
+
+    /* Index on the right, truncated if too long. */
     #indexDisplay {
       font-size: 1.2rem;
       color: #333;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      width: 95%;
-      box-sizing: border-box;
-    }
-    /* Collapse/Expand toggle button always at top-right within header */
-    #toggleButton {
-      position: absolute;
-      top: 0;
-      right: 0;
-      margin: 5px;
-      font-size: 1rem;
-      padding: 0.2em 0.5em;
-      z-index: 20;
-      cursor: pointer;
+      flex: 1;           /* take remaining space */
+      text-align: right; /* align text to the right */
     }
 
-    /* Pinned Arabic text */
+    /*
+      Arabic pinned at 30% of leftover (var(--app-height) - var(--header-height))
+      top = var(--header-height) + 0.3*(var(--app-height) - var(--header-height))
+    */
     #fixedArabic {
       position: fixed;
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      height: var(--arabic-font); /* 60px */
+      height: 60px; /* For 60px font */
+      top: calc(
+        var(--header-height) +
+        0.3 * (var(--app-height) - var(--header-height))
+      );
       pointer-events: none;
-      overflow-wrap: break-word;
-      white-space: normal;
     }
     .arabic {
-      font-size: var(--arabic-font)px;
-      line-height: var(--arabic-font)px;
+      font-size: 60px; /* Hardcoded Arabic font size */
+      line-height: 60px;
+      word-wrap: break-word;
+      white-space: normal;
     }
 
-    /* Scrollable translation container below Arabic */
+    /* Translation container below Arabic, scrollable. */
     #translationContainer {
       position: absolute;
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
+      /* Start 20px below Arabic block. */
+      top: calc(
+        var(--header-height) +
+        0.3 * (var(--app-height) - var(--header-height)) + 60px + 20px
+      );
+      bottom: 0;
       overflow-y: auto;
       text-align: center;
-      overflow-wrap: break-word;
+      word-wrap: break-word;
       white-space: normal;
     }
     .english {
-      font-size: var(--english-font)px;
-      line-height: var(--english-font)px;
+      font-size: 30px; /* Hardcoded English font size */
+      line-height: 30px;
+    }
+
+    /* For narrow screens, stack form fields vertically. */
+    @media (max-width: 600px) {
+      form {
+        flex-direction: column;
+      }
     }
   </style>
 </head>
@@ -163,16 +170,16 @@
     <div id="startScreen">
       <h1>Quran Player</h1>
       <div id="versionInfo">
-        Version: 10 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
+        Version: 11 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
       </div>
       <form id="playerForm">
         <label>
           Surah:
-          <input type="number" id="surahInput" required>
+          <input type="number" id="surah" required>
         </label>
         <label>
           Ayah:
-          <input type="number" id="ayahInput" required>
+          <input type="number" id="ayah" required>
         </label>
         <button type="submit">Play</button>
       </form>
@@ -180,21 +187,18 @@
 
     <!-- Player Section -->
     <div id="playerSection">
-      <!-- Fixed Header with controls and index -->
+      <!-- Single-row header: audio on left, index on right. -->
       <div id="headerControls">
-        <div id="toggleButton">Collapse</div>
-        <div id="audioRow">
-          <audio id="audioPlayer" controls></audio>
-        </div>
+        <audio id="audioPlayer" controls></audio>
         <div id="indexDisplay"></div>
       </div>
 
-      <!-- Pinned Arabic text -->
+      <!-- Pinned Arabic text at 30% leftover height -->
       <div id="fixedArabic">
         <span id="arabicText" class="arabic"></span>
       </div>
 
-      <!-- Scrollable Translation Container -->
+      <!-- Scrollable translation container -->
       <div id="translationContainer">
         <span id="englishText" class="english"></span>
       </div>
@@ -202,19 +206,11 @@
   </div>
 
   <script>
-    /* Global configuration constants */
-    const EXPANDED_HEADER = 120;
-    const COLLAPSED_HEADER = 40;
-    const ARABIC_FONT_HEIGHT = 60;
-    const ENGLISH_FONT_HEIGHT = 30;
-    const GAP_BELOW_ARABIC = 20;
-    const ARABIC_PERCENT = 0.3; // 30% of leftover height
-
-    let isCollapsed = false;
-    let appHeight = window.innerHeight;
-
+    const VERSION = "11";
+    const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
     let data = null;
-    let surah = 0, currentAyah = 0;
+    let currentAyah = 0;
+    let surah = 0;
     let ayahWords = [];
     let lastDisplayedIndex = -1;
 
@@ -222,71 +218,31 @@
     const arabicText = document.getElementById("arabicText");
     const englishText = document.getElementById("englishText");
     const indexDisplay = document.getElementById("indexDisplay");
-    const startScreen = document.getElementById("startScreen");
-    const playerSection = document.getElementById("playerSection");
-    const headerControls = document.getElementById("headerControls");
-    const toggleButton = document.getElementById("toggleButton");
 
-    /* Update --app-height on resize/orientation change */
+    // Dynamically update --app-height so we recalc on rotation.
     function setAppHeight() {
-      appHeight = window.innerHeight;
-      repositionElements();
+      document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
     }
     window.addEventListener('resize', setAppHeight);
     window.addEventListener('orientationchange', setAppHeight);
-
-    /* Toggle the header between collapsed and expanded */
-    function toggleHeader() {
-      isCollapsed = !isCollapsed;
-      let newHeight = isCollapsed ? COLLAPSED_HEADER : EXPANDED_HEADER;
-      headerControls.style.height = newHeight + "px";
-      toggleButton.textContent = isCollapsed ? "Expand" : "Collapse";
-      repositionElements();
-    }
-    toggleButton.addEventListener("click", toggleHeader);
-
-    /* Reposition all fixed elements based on appHeight and current header height */
-    function repositionElements() {
-      // Set header height variable in CSS
-      let headerH = isCollapsed ? COLLAPSED_HEADER : EXPANDED_HEADER;
-      document.documentElement.style.setProperty('--current-header', headerH);
-
-      // Reposition start screen (if visible)
-      if (startScreen.style.display !== "none") {
-        startScreen.style.marginTop = (headerH + 10) + "px";
-      }
-      
-      // Calculate leftover space after header:
-      let leftover = appHeight - headerH;
-      // Pinned Arabic top: header height + 30% of leftover space
-      let arabicTop = headerH + (leftover * ARABIC_PERCENT);
-      document.getElementById("fixedArabic").style.top = arabicTop + "px";
-      document.getElementById("fixedArabic").style.height = ARABIC_FONT_HEIGHT + "px";
-      
-      // Translation container: start below Arabic by GAP_BELOW_ARABIC
-      let transTop = arabicTop + ARABIC_FONT_HEIGHT + GAP_BELOW_ARABIC;
-      document.getElementById("translationContainer").style.top = transTop + "px";
-      document.getElementById("translationContainer").style.bottom = "0px";
-    }
-
-    /* Start by setting app height */
+    // Call once at start
     setAppHeight();
 
-    /* Form submission: start player */
     document.getElementById("playerForm").addEventListener("submit", function(e) {
       e.preventDefault();
-      surah = parseInt(document.getElementById("surahInput").value);
-      currentAyah = parseInt(document.getElementById("ayahInput").value);
-      startScreen.style.display = "none";
-      playerSection.style.display = "block";
+      surah = parseInt(document.getElementById("surah").value);
+      currentAyah = parseInt(document.getElementById("ayah").value);
+      // Hide the start screen, show the player
+      document.getElementById("startScreen").style.display = "none";
+      document.getElementById("playerSection").style.display = "block";
       loadSurahData(surah).then(() => {
         playAyah(currentAyah);
       });
     });
 
-    async function loadSurahData(surahNumber) {
+    async function loadSurahData(surah) {
       try {
-        const response = await fetch(`json/${surahNumber}.json`);
+        const response = await fetch(`json/${surah}.json`);
         data = await response.json();
       } catch (err) {
         console.error("Error loading JSON data:", err);
@@ -294,19 +250,18 @@
     }
 
     function playAyah(ayah) {
-      if (!data) return;
-      let ayahData = data[String(ayah)];
+      const surahStr = ("000" + surah).slice(-3);
+      const ayahStr = ("000" + ayah).slice(-3);
+      const ayahData = data[String(ayah)];
       if (!ayahData) return;
 
+      // Build array of words with scheduled times
       ayahWords = ayahData["w"].map(word => ({
         scheduledTime: (parseFloat(word["b"]) - 0.1) * 1000,
         c: word["c"],
         e: word["e"]
       }));
       lastDisplayedIndex = -1;
-
-      const surahStr = ("000" + surah).slice(-3);
-      const ayahStr = ("000" + ayah).slice(-3);
 
       audioPlayer.src = remoteBaseUrl + surahStr + ayahStr + ".mp3";
       audioPlayer.load();
@@ -316,7 +271,7 @@
         updateDisplay();
       };
 
-      // Pre-buffer next three ayahs if available
+      // Pre-buffer next 3 ayahs if available
       for (let next = ayah + 1; next <= ayah + 3; next++) {
         if (data[String(next)]) {
           let nextAyahStr = ("000" + next).slice(-3);
@@ -345,7 +300,7 @@
       }
       if (newIndex !== lastDisplayedIndex && newIndex >= 0) {
         lastDisplayedIndex = newIndex;
-        let word = ayahWords[newIndex];
+        const word = ayahWords[newIndex];
         arabicText.innerHTML = word.c;
         englishText.innerHTML = word.e;
 
