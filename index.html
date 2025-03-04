@@ -15,18 +15,15 @@
     body {
       font-family: "Courier New", monospace;
       background: #f0f0f0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1em;
       text-align: center;
+      padding: 1em;
     }
     #container {
       width: 90%;
       max-width: 800px;
       margin: auto;
     }
-    /* Start screen styling */
+    /* Start Screen Styling */
     #startScreen {
       margin-bottom: 2em;
     }
@@ -53,46 +50,46 @@
       padding: 0.5em;
       margin-top: 0.3em;
     }
-    /* Player section styling */
+    /* Player Section Styling */
     #playerSection {
       display: none;
+      position: relative;
     }
-    /* The display area is divided into two parts:
-       - The Arabic container (fixed height so it never shifts)
-       - The translation (which will push controls down if it wraps) */
-    #display {
-      margin: 1em 0;
-    }
-    .arabic-container {
-      /* On mobile (max-width:600px), take up 50% of viewport height; otherwise 25% */
-      height: 50vh;
-    }
-    @media (min-width:600px) {
-      .arabic-container {
-        height: 25vh;
-      }
+    /* Fixed Arabic Text: always 70px, centered horizontally and fixed 20% from the top */
+    #fixedArabic {
+      position: fixed;
+      top: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+      height: 70px;
+      line-height: 70px;
+      text-align: center;
+      width: 100%;
+      pointer-events: none;
     }
     .arabic {
-      /* Dynamic scaling without an upper cap */
-      font-size: 8vw;
+      font-size: 70px;  /* Hardcoded 70px for all platforms */
     }
-    @media (min-width:600px) {
-      .arabic {
-        font-size: 4vw;
-      }
+    /* Translation container is in normal flow and immediately below a placeholder */
+    #translationContainer {
+      margin-top: calc(20% + 70px); /* starts immediately below the fixed Arabic text */
+      text-align: center;
+      padding: 0 1em;
+      word-wrap: break-word;
+      white-space: normal;
     }
-    .english {
-      /* Dynamic scaling for translation text */
-      font-size: 4vw;
-    }
-    @media (min-width:600px) {
-      .english {
-        font-size: 2vw;
-      }
+    /* Player controls */
+    #controls {
+      text-align: center;
+      margin-top: 1em;
     }
     #playPause {
       font-size: 1.2rem;
       padding: 0.5em 1em;
+    }
+    /* English translation: fixed size at 35px */
+    .english {
+      font-size: 35px;
     }
     /* For narrow screens, stack form fields vertically */
     @media (max-width:600px) {
@@ -108,7 +105,7 @@
     <div id="startScreen">
       <h1>Quran Player</h1>
       <div id="versionInfo">
-        Version: 4 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
+        Version: 3 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
       </div>
       <form id="playerForm">
         <label>
@@ -125,23 +122,26 @@
 
     <!-- Player Section -->
     <div id="playerSection">
-      <h2 id="header"></h2>
-      <div id="display">
-        <div class="arabic-container">
-          <span id="arabicText" class="arabic"></span>
-        </div>
-        <div id="englishText" class="english"></div>
+      <!-- Fixed Arabic Text -->
+      <div id="fixedArabic">
+        <span id="arabicText" class="arabic"></span>
       </div>
-      <button id="playPause">Pause</button>
-      <br>
-      <audio id="audioPlayer" controls></audio>
+      <!-- Translation: appears immediately below the fixed Arabic text -->
+      <div id="translationContainer">
+        <span id="englishText" class="english"></span>
+      </div>
+      <div id="controls">
+        <button id="playPause">Pause</button>
+        <br>
+        <audio id="audioPlayer" controls></audio>
+      </div>
     </div>
   </div>
 
   <script>
-    // VERSION constant defined at the top for easy updating
+    // VERSION constant defined at the top for easy updating.
     const VERSION = "3";
-
+    
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
     let data = null;
     let currentAyah = 0;
@@ -177,13 +177,14 @@
     }
 
     function playAyah(ayah) {
-      header.innerText = `Surah ${("000" + surah).slice(-3)}, Ayah ${("000" + ayah).slice(-3)}`;
+      // Update header text (optional, if you want to display current surah/ayah)
+      //header.innerText = `Surah ${("000" + surah).slice(-3)}, Ayah ${("000" + ayah).slice(-3)}`;
       const surahStr = ("000" + surah).slice(-3);
       const ayahStr = ("000" + ayah).slice(-3);
       const ayahData = data[String(ayah)];
       if (!ayahData) return;
 
-      // Build an array of words with scheduled display times (in ms, with a 0.1 sec offset).
+      // Build an array of words with scheduled display times (in ms, using a 0.1 sec offset).
       ayahWords = ayahData["w"].map(word => ({
         scheduledTime: (parseFloat(word["b"]) - 0.1) * 1000,
         c: word["c"],
@@ -233,7 +234,7 @@
       if (newIndex !== lastDisplayedIndex && newIndex >= 0) {
         lastDisplayedIndex = newIndex;
         let word = ayahWords[newIndex];
-        // Update the Arabic text (in its fixed-height container) and the flowing English translation.
+        // Update the fixed Arabic text and the translation immediately below.
         arabicText.innerHTML = word.c;
         englishText.innerHTML = word.e;
       }
