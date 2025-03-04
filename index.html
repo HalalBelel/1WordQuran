@@ -2,21 +2,23 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- Mobile scaling -->
+  <!-- Ensure proper scaling on mobile devices -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quran Player on GitHub Pages</title>
   <style>
     :root {
-      /* Increased header height to 120px */
+      /* The total height of the header area. */
       --header-height: 120px;
+      /* We'll update this in JS to match window.innerHeight. */
+      --app-height: 100vh;
     }
 
-    /* No normal page scrolling; we’ll scroll inside a container */
+    /* Remove normal page scrolling; we’ll scroll inside a container. */
     html, body {
       margin: 0;
       padding: 0;
       height: 100%;
-      overflow: hidden;
+      overflow: hidden; /* So pinned elements never overlap on scroll. */
     }
     body {
       font-family: "Courier New", monospace;
@@ -24,7 +26,7 @@
       text-align: center;
     }
 
-    /* Main container filling the screen */
+    /* Container for everything, fills the entire screen */
     #container {
       width: 90%;
       max-width: 800px;
@@ -33,7 +35,7 @@
       height: 100%;
     }
 
-    /* Start screen below the header so it’s not hidden initially */
+    /* Start Screen: we position it below the header so it's not hidden initially */
     #startScreen {
       margin-top: calc(var(--header-height) + 10px);
     }
@@ -61,16 +63,17 @@
       margin-top: 0.3em;
     }
 
-    /* Player section hidden until user submits form */
+    /* The player section is hidden until the user submits the form */
     #playerSection {
       display: none;
       position: relative;
       height: 100%;
     }
 
-    /* Fixed header (120px tall) with two lines:
+    /* Fixed header (120px) with two lines:
        1) Audio controls
-       2) Index display, truncated if too wide */
+       2) Index (truncated if too wide)
+    */
     #headerControls {
       position: fixed;
       top: 0;
@@ -83,17 +86,17 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       z-index: 10;
       display: flex;
-      flex-direction: column; /* stack audio and index vertically */
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       box-sizing: border-box;
       padding: 0.5em;
     }
-    /* Audio row on top */
+    /* First line: audio controls */
     #audioRow {
       margin-bottom: 0.3em;
     }
-    /* Index row below audio, truncated horizontally if needed */
+    /* Second line: index display, truncated if too wide */
     #indexDisplay {
       font-size: 1.2rem;
       color: #333;
@@ -105,22 +108,18 @@
     }
 
     /*
-      Arabic text pinned at 40% of the leftover screen height
-      after subtracting the 120px header.
-
-      Calculation:
-        leftover = (100vh - var(--header-height))
-        arabicTop = var(--header-height) + 0.4 * leftover
+      Arabic text pinned at 30% of leftover screen height (var(--app-height) - var(--header-height)).
+      top = var(--header-height) + 0.3*(var(--app-height) - var(--header-height))
     */
     #fixedArabic {
       position: fixed;
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      height: 60px; /* for 60px font */
+      height: 60px; /* For 60px font */
       top: calc(
         var(--header-height) + 
-        0.4 * (100vh - var(--header-height))
+        0.3 * (var(--app-height) - var(--header-height))
       );
       pointer-events: none;
     }
@@ -131,16 +130,19 @@
       white-space: normal;
     }
 
-    /* Scrollable translation container below pinned Arabic.
-       Start 20px below the Arabic block. */
+    /*
+      Scrollable translation container, starting 20px below the pinned Arabic text.
+      top = var(--header-height) + 0.3*(var(--app-height) - var(--header-height)) + 60px + 20px
+      bottom = 0
+    */
     #translationContainer {
       position: absolute;
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
       top: calc(
-        var(--header-height) + 
-        0.4 * (100vh - var(--header-height)) + 60px + 20px
+        var(--header-height) +
+        0.3 * (var(--app-height) - var(--header-height)) + 60px + 20px
       );
       bottom: 0;
       overflow-y: auto;
@@ -153,7 +155,7 @@
       line-height: 30px;
     }
 
-    /* On narrow screens, stack form fields vertically */
+    /* For narrow screens, stack form fields vertically */
     @media (max-width: 600px) {
       form {
         flex-direction: column;
@@ -167,7 +169,7 @@
     <div id="startScreen">
       <h1>Quran Player</h1>
       <div id="versionInfo">
-        Version: 2 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
+        Version: 10 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
       </div>
       <form id="playerForm">
         <label>
@@ -184,7 +186,7 @@
 
     <!-- Player Section -->
     <div id="playerSection">
-      <!-- Fixed header: 2 lines (audio, then index) -->
+      <!-- Fixed header (audio + index) -->
       <div id="headerControls">
         <div id="audioRow">
           <audio id="audioPlayer" controls></audio>
@@ -192,7 +194,7 @@
         <div id="indexDisplay"></div>
       </div>
 
-      <!-- Pinned Arabic at ~40% of leftover screen height -->
+      <!-- Pinned Arabic at ~30% leftover screen height -->
       <div id="fixedArabic">
         <span id="arabicText" class="arabic"></span>
       </div>
@@ -217,6 +219,15 @@
     const arabicText = document.getElementById("arabicText");
     const englishText = document.getElementById("englishText");
     const indexDisplay = document.getElementById("indexDisplay");
+
+    // Dynamically update --app-height so it recalculates on rotation
+    function setAppHeight() {
+      document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
+    }
+    window.addEventListener('resize', setAppHeight);
+    window.addEventListener('orientationchange', setAppHeight);
+    // Call once at start
+    setAppHeight();
 
     document.getElementById("playerForm").addEventListener("submit", function(e) {
       e.preventDefault();
