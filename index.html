@@ -6,30 +6,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quran Player on GitHub Pages</title>
   <style>
-    /* Remove normal scrolling and fill the screen */
+    /* We use a CSS variable for the header height. */
+    :root {
+      --header-height: 90px;
+    }
+
+    /* Remove normal page scrolling; we'll scroll inside a container. */
     html, body {
       margin: 0;
       padding: 0;
       height: 100%;
-      overflow: hidden; /* No page scroll */
+      overflow: hidden; /* So the pinned Arabic never overlaps on scroll. */
     }
     body {
       font-family: "Courier New", monospace;
       background: #f0f0f0;
       text-align: center;
     }
-    /* Container for everything */
+
+    /* Container for all content */
     #container {
       width: 90%;
       max-width: 800px;
       margin: auto;
       position: relative;
-      height: 100%; /* Fill the screen */
+      height: 100%;
     }
 
-    /* Start Screen */
+    /* Start screen styling */
     #startScreen {
-      margin-top: 80px; /* So it's not under the header on load */
+      margin-top: calc(var(--header-height) + 10px); 
+      /* So it's not hidden behind the fixed header on load */
     }
     #versionInfo {
       font-size: 1rem;
@@ -55,7 +62,16 @@
       margin-top: 0.3em;
     }
 
-    /* Fixed Header: audio + index at top */
+    /* Player Section */
+    #playerSection {
+      display: none;
+      position: relative;
+      height: 100%;
+    }
+
+    /* Fixed Header (90px tall) with two lines:
+       1) Audio controls
+       2) Index, truncated if too wide */
     #headerControls {
       position: fixed;
       top: 0;
@@ -63,70 +79,90 @@
       transform: translateX(-50%);
       width: 100%;
       max-width: 800px;
-      height: 70px;
+      height: var(--header-height);
       background: #ffffff;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      z-index: 10;
       display: flex;
+      flex-direction: column; /* Stack the audio on the first line, index on second */
       align-items: center;
       justify-content: center;
-      gap: 1em;
-      z-index: 10;
       padding: 0.5em;
+      box-sizing: border-box;
     }
+
+    /* Top line: audio controls */
+    #audioRow {
+      margin-bottom: 0.3em;
+    }
+
+    /* Second line: index display, truncated if too wide */
     #indexDisplay {
       font-size: 1.2rem;
       color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      width: 90%; /* Truncate if longer than 90% of the header width */
+      box-sizing: border-box;
     }
 
-    /* Fixed Arabic text at 40% of viewport height */
+    /*
+      Arabic text pinned at 40% of the remaining screen height
+      after subtracting the header.
+
+      Calculation:
+        - Subtract header from total: (100vh - var(--header-height))
+        - Take 40% of that remainder
+        - Add back the header offset
+
+      So: top: var(--header-height) + 0.4*(100vh - var(--header-height))
+    */
     #fixedArabic {
       position: fixed;
-      top: 40vh;
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      height: 70px; /* Hardcoded 70px for Arabic */
-      pointer-events: none; /* So it won't intercept clicks */
+      height: 70px; /* Arabic line height */
+      top: calc(
+        var(--header-height) + 
+        0.4 * (100vh - var(--header-height))
+      );
+      pointer-events: none;
     }
     .arabic {
-      font-size: 70px; /* Hardcoded 70px for Arabic text */
+      font-size: 70px;
       line-height: 70px;
       word-wrap: break-word;
       white-space: normal;
     }
 
-    /* A scrollable container for the translation. 
-       It's absolutely positioned below the Arabic text. */
+    /* Scrollable container for translation below pinned Arabic. 
+       We'll position it starting below the Arabic by 10px. 
+       Then let it fill up the remaining space to the bottom. */
     #translationContainer {
       position: absolute;
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      /* Start below Arabic: 40vh + 70px + small gap (10px) */
-      top: calc(40vh + 70px + 10px);
-      /* Make it fill the rest of the screen below Arabic. 
-         Subtract 80px for the top header, just in case. 
-         Adjust as needed if your device height is smaller. */
-      bottom: 0;
-      overflow-y: auto; /* Scroll inside this container */
+      /* Start 20px below the Arabic block */
+      top: calc(
+        var(--header-height) + 
+        0.4 * (100vh - var(--header-height)) + 70px + 20px
+      );
+      bottom: 0; /* fill the rest of the screen */
+      overflow-y: auto;
       text-align: center;
       word-wrap: break-word;
       white-space: normal;
     }
     .english {
-      font-size: 35px; /* Hardcoded 35px for translation */
+      font-size: 35px;
       line-height: 35px;
     }
 
-    /* Player Section (header + pinned Arabic + translation) */
-    #playerSection {
-      display: none;
-      position: relative;
-      height: 100%;
-    }
-
     /* For narrow screens, stack form fields vertically */
-    @media (max-width:600px) {
+    @media (max-width: 600px) {
       form {
         flex-direction: column;
       }
@@ -135,11 +171,11 @@
 </head>
 <body>
   <div id="container">
-    <!-- Start Screen with Version and Static Timestamp -->
+    <!-- Start Screen with Version and Timestamp -->
     <div id="startScreen">
       <h1>Quran Player</h1>
       <div id="versionInfo">
-        Version: 3 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
+        Version: 4 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
       </div>
       <form id="playerForm">
         <label>
@@ -156,18 +192,20 @@
 
     <!-- Player Section -->
     <div id="playerSection">
-      <!-- Fixed header controls -->
+      <!-- Fixed header, 2 lines: audio row, then index row -->
       <div id="headerControls">
-        <audio id="audioPlayer" controls></audio>
+        <div id="audioRow">
+          <audio id="audioPlayer" controls></audio>
+        </div>
         <div id="indexDisplay"></div>
       </div>
 
-      <!-- Fixed Arabic text -->
+      <!-- Arabic pinned at 40% of the remaining height after header -->
       <div id="fixedArabic">
         <span id="arabicText" class="arabic"></span>
       </div>
 
-      <!-- Scrollable translation container -->
+      <!-- Scrollable translation container below the Arabic -->
       <div id="translationContainer">
         <span id="englishText" class="english"></span>
       </div>
@@ -175,7 +213,7 @@
   </div>
 
   <script>
-    const VERSION = "3";
+    const VERSION = "5";
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
     let data = null;
     let currentAyah = 0;
@@ -192,6 +230,7 @@
       e.preventDefault();
       surah = parseInt(document.getElementById("surah").value);
       currentAyah = parseInt(document.getElementById("ayah").value);
+      // Hide start screen, show player section
       document.getElementById("startScreen").style.display = "none";
       document.getElementById("playerSection").style.display = "block";
       loadSurahData(surah).then(() => {
@@ -261,9 +300,10 @@
         const word = ayahWords[newIndex];
         arabicText.innerHTML = word.c;
         englishText.innerHTML = word.e;
-        const surahStr = ("000" + surah).slice(-3);
-        const ayahStr = ("000" + currentAyah).slice(-3);
-        const wordIndexStr = ("000" + (newIndex + 1)).slice(-3);
+
+        let surahStr = ("000" + surah).slice(-3);
+        let ayahStr = ("000" + currentAyah).slice(-3);
+        let wordIndexStr = ("000" + (newIndex + 1)).slice(-3);
         indexDisplay.textContent = `Index: ${surahStr}:${ayahStr}:${wordIndexStr}`;
       }
       requestAnimationFrame(updateDisplay);
