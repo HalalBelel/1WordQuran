@@ -4,29 +4,17 @@
   <meta charset="UTF-8">
   <!-- Ensure proper scaling on mobile devices -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quran Player on GitHub Pages</title>
+  <title>Quran Player - Collapsible Controls</title>
   <style>
-    :root {
-      /* The total height of the header area. */
-      --header-height: 120px;
-      /* We'll update this in JS to match window.innerHeight. */
-      --app-height: 100vh;
-    }
-
-    /* Remove normal page scrolling; we’ll scroll inside a container. */
     html, body {
       margin: 0;
       padding: 0;
       height: 100%;
-      overflow: hidden; /* So pinned elements never overlap on scroll. */
-    }
-    body {
+      overflow: hidden; /* We'll scroll only in a translation container */
       font-family: "Courier New", monospace;
       background: #f0f0f0;
       text-align: center;
     }
-
-    /* Container for everything, fills the entire screen */
     #container {
       width: 90%;
       max-width: 800px;
@@ -35,9 +23,12 @@
       height: 100%;
     }
 
-    /* Start Screen: we position it below the header so it's not hidden initially */
+    /* Start screen is hidden after the user submits */
     #startScreen {
-      margin-top: calc(var(--header-height) + 10px);
+      position: absolute;
+      left: 0;
+      right: 0;
+      /* We'll set its marginTop via JS so it repositions on rotation or collapse */
     }
     #versionInfo {
       font-size: 1rem;
@@ -47,15 +38,15 @@
     form {
       display: flex;
       flex-wrap: wrap;
-      align-items: center;
-      justify-content: center;
       gap: 1em;
+      justify-content: center;
+      align-items: center;
     }
     form label {
-      font-size: 1.2rem;
       display: flex;
       flex-direction: column;
       align-items: flex-start;
+      font-size: 1.2rem;
     }
     input, button {
       font-size: 1.2rem;
@@ -63,100 +54,91 @@
       margin-top: 0.3em;
     }
 
-    /* The player section is hidden until the user submits the form */
+    /* Player section hidden until we press "Play" */
     #playerSection {
       display: none;
-      position: relative;
-      height: 100%;
+      position: absolute;
+      left: 0; 
+      right: 0;
+      height: 100%; 
     }
 
-    /* Fixed header (120px) with two lines:
-       1) Audio controls
-       2) Index (truncated if too wide)
-    */
-    #headerControls {
-      position: fixed;
-      top: 0;
+    /* The top bar (audio + index) can collapse. We'll animate height changes. */
+    #topBar {
+      position: absolute;
       left: 50%;
       transform: translateX(-50%);
       width: 100%;
       max-width: 800px;
-      height: var(--header-height);
       background: #ffffff;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      overflow: hidden; /* So when collapsed, contents are hidden */
+      transition: height 0.3s ease;
       z-index: 10;
+    }
+    /* We place controls and index in a column. Adjust as you like. */
+    #topBarContents {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      box-sizing: border-box;
       padding: 0.5em;
+      box-sizing: border-box;
     }
-    /* First line: audio controls */
     #audioRow {
-      margin-bottom: 0.3em;
+      margin-bottom: 0.5em;
     }
-    /* Second line: index display, truncated if too wide */
-    #indexDisplay {
+    #indexRow {
       font-size: 1.2rem;
       color: #333;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       width: 95%;
-      box-sizing: border-box;
     }
 
-    /*
-      Arabic text pinned at 30% of leftover screen height (var(--app-height) - var(--header-height)).
-      top = var(--header-height) + 0.3*(var(--app-height) - var(--header-height))
-    */
+    /* A button to collapse/expand the bar. We'll place it to the right or left. */
+    #collapseButton {
+      align-self: flex-end;
+      margin-top: 0.5em;
+      font-size: 1rem;
+      padding: 0.2em 0.5em;
+    }
+
+    /* Arabic text pinned below the bar. We'll set top via JS. */
     #fixedArabic {
-      position: fixed;
+      position: absolute;
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      height: 60px; /* For 60px font */
-      top: calc(
-        var(--header-height) + 
-        0.3 * (var(--app-height) - var(--header-height))
-      );
+      /* We'll set top and height in JS. */
       pointer-events: none;
-    }
-    .arabic {
-      font-size: 60px; /* Hardcoded Arabic font size */
-      line-height: 60px;
-      word-wrap: break-word;
+      overflow-wrap: break-word;
       white-space: normal;
     }
+    .arabic {
+      font-size: 60px;
+      line-height: 60px;
+    }
 
-    /*
-      Scrollable translation container, starting 20px below the pinned Arabic text.
-      top = var(--header-height) + 0.3*(var(--app-height) - var(--header-height)) + 60px + 20px
-      bottom = 0
-    */
+    /* The scrollable translation container. We'll set top, bottom in JS. */
     #translationContainer {
       position: absolute;
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      top: calc(
-        var(--header-height) +
-        0.3 * (var(--app-height) - var(--header-height)) + 60px + 20px
-      );
-      bottom: 0;
       overflow-y: auto;
       text-align: center;
-      word-wrap: break-word;
+      overflow-wrap: break-word;
       white-space: normal;
     }
     .english {
-      font-size: 30px; /* Hardcoded English font size */
+      font-size: 30px;
       line-height: 30px;
     }
 
-    /* For narrow screens, stack form fields vertically */
-    @media (max-width: 600px) {
+    /* For small screens, stack form fields vertically */
+    @media (max-width:600px) {
       form {
         flex-direction: column;
       }
@@ -169,16 +151,16 @@
     <div id="startScreen">
       <h1>Quran Player</h1>
       <div id="versionInfo">
-        Version: 10 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
+        Version: 20 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
       </div>
       <form id="playerForm">
         <label>
           Surah:
-          <input type="number" id="surah" required>
+          <input type="number" id="surahInput" required>
         </label>
         <label>
           Ayah:
-          <input type="number" id="ayah" required>
+          <input type="number" id="ayahInput" required>
         </label>
         <button type="submit">Play</button>
       </form>
@@ -186,20 +168,23 @@
 
     <!-- Player Section -->
     <div id="playerSection">
-      <!-- Fixed header (audio + index) -->
-      <div id="headerControls">
-        <div id="audioRow">
-          <audio id="audioPlayer" controls></audio>
+      <!-- Collapsible top bar (audio + index + collapse button) -->
+      <div id="topBar">
+        <div id="topBarContents">
+          <div id="audioRow">
+            <audio id="audioPlayer" controls></audio>
+          </div>
+          <div id="indexRow"></div>
+          <button id="collapseButton">Collapse</button>
         </div>
-        <div id="indexDisplay"></div>
       </div>
 
-      <!-- Pinned Arabic at ~30% leftover screen height -->
+      <!-- Pinned Arabic text -->
       <div id="fixedArabic">
         <span id="arabicText" class="arabic"></span>
       </div>
 
-      <!-- Scrollable translation container below Arabic -->
+      <!-- Scrollable translation container -->
       <div id="translationContainer">
         <span id="englishText" class="english"></span>
       </div>
@@ -207,43 +192,94 @@
   </div>
 
   <script>
-    const VERSION = "10";
-    const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
+    /* Global config */
+    let headerHeight = 120; // expanded height of the top bar
+    let collapsedHeight = 0; // collapsed height
+    let isCollapsed = false; // track if the bar is collapsed
+    const ARABIC_FONT_HEIGHT = 60; // px
+    const GAP_BELOW_ARABIC = 20; // px
+    const ARABIC_PERCENT = 0.3; // 30% of leftover space
+
     let data = null;
-    let currentAyah = 0;
-    let surah = 0;
+    let surah = 0, currentAyah = 0;
     let ayahWords = [];
     let lastDisplayedIndex = -1;
+    const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
 
+    /* DOM references */
+    const startScreen = document.getElementById("startScreen");
+    const playerSection = document.getElementById("playerSection");
+    const topBar = document.getElementById("topBar");
     const audioPlayer = document.getElementById("audioPlayer");
+    const indexRow = document.getElementById("indexRow");
     const arabicText = document.getElementById("arabicText");
     const englishText = document.getElementById("englishText");
-    const indexDisplay = document.getElementById("indexDisplay");
+    const fixedArabic = document.getElementById("fixedArabic");
+    const translationContainer = document.getElementById("translationContainer");
+    const collapseButton = document.getElementById("collapseButton");
 
-    // Dynamically update --app-height so it recalculates on rotation
-    function setAppHeight() {
-      document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
-    }
-    window.addEventListener('resize', setAppHeight);
+    /* For dynamic height calculations */
+    let appHeight = 0;
+
+    /* On load, set up event listeners */
     window.addEventListener('orientationchange', setAppHeight);
-    // Call once at start
-    setAppHeight();
+    window.addEventListener('resize', setAppHeight);
 
     document.getElementById("playerForm").addEventListener("submit", function(e) {
       e.preventDefault();
-      surah = parseInt(document.getElementById("surah").value);
-      currentAyah = parseInt(document.getElementById("ayah").value);
-      // Hide start screen, show player
-      document.getElementById("startScreen").style.display = "none";
-      document.getElementById("playerSection").style.display = "block";
+      surah = parseInt(document.getElementById("surahInput").value);
+      currentAyah = parseInt(document.getElementById("ayahInput").value);
+      startScreen.style.display = "none";
+      playerSection.style.display = "block";
       loadSurahData(surah).then(() => {
         playAyah(currentAyah);
       });
     });
 
-    async function loadSurahData(surah) {
+    collapseButton.addEventListener("click", toggleHeader);
+
+    /* Initialize on load */
+    setAppHeight();
+
+    /* Dynamically set the app height so it updates on rotation/resizing. */
+    function setAppHeight() {
+      appHeight = window.innerHeight; // actual device innerHeight
+      repositionElements();
+    }
+
+    /* Toggle the top bar between expanded and collapsed. */
+    function toggleHeader() {
+      isCollapsed = !isCollapsed;
+      topBar.style.height = isCollapsed ? collapsedHeight + "px" : headerHeight + "px";
+      collapseButton.textContent = isCollapsed ? "Expand" : "Collapse";
+      repositionElements();
+    }
+
+    /* Reposition pinned Arabic, translation container, start screen, etc. */
+    function repositionElements() {
+      // Set the top bar height immediately (no waiting for transition).
+      topBar.style.height = isCollapsed ? collapsedHeight + "px" : headerHeight + "px";
+
+      // For the start screen, place it below the bar (unless collapsed).
+      let barH = isCollapsed ? collapsedHeight : headerHeight;
+      startScreen.style.marginTop = (barH + 10) + "px";
+
+      // leftover space after the bar
+      let leftover = appHeight - barH;
+      // pinned Arabic is 30% down leftover, plus bar offset
+      let arabicTop = barH + leftover * ARABIC_PERCENT;
+      fixedArabic.style.top = arabicTop + "px";
+      fixedArabic.style.height = ARABIC_FONT_HEIGHT + "px";
+
+      // translation container starts below Arabic by GAP_BELOW_ARABIC
+      let transTop = arabicTop + ARABIC_FONT_HEIGHT + GAP_BELOW_ARABIC;
+      translationContainer.style.top = transTop + "px";
+      translationContainer.style.bottom = "0px"; // fill rest
+    }
+
+    async function loadSurahData(surahNumber) {
       try {
-        const response = await fetch(`json/${surah}.json`);
+        const response = await fetch(`json/${surahNumber}.json`);
         data = await response.json();
       } catch (err) {
         console.error("Error loading JSON data:", err);
@@ -251,12 +287,10 @@
     }
 
     function playAyah(ayah) {
-      const surahStr = ("000" + surah).slice(-3);
-      const ayahStr = ("000" + ayah).slice(-3);
-      const ayahData = data[String(ayah)];
+      if (!data) return;
+      let ayahData = data[String(ayah)];
       if (!ayahData) return;
 
-      // Build array of words with scheduled times
       ayahWords = ayahData["w"].map(word => ({
         scheduledTime: (parseFloat(word["b"]) - 0.1) * 1000,
         c: word["c"],
@@ -264,10 +298,13 @@
       }));
       lastDisplayedIndex = -1;
 
+      const surahStr = ("000" + surah).slice(-3);
+      const ayahStr = ("000" + ayah).slice(-3);
+
       audioPlayer.src = remoteBaseUrl + surahStr + ayahStr + ".mp3";
       audioPlayer.load();
 
-      audioPlayer.oncanplaythrough = function() {
+      audioPlayer.oncanplaythrough = () => {
         audioPlayer.play();
         updateDisplay();
       };
@@ -281,8 +318,7 @@
         }
       }
 
-      // When this ayah ends, move on if possible
-      audioPlayer.onended = function() {
+      audioPlayer.onended = () => {
         if (data[String(ayah + 1)]) {
           currentAyah = ayah + 1;
           playAyah(currentAyah);
@@ -290,6 +326,7 @@
       };
     }
 
+    /* Continuously update the displayed word based on the current audio time. */
     function updateDisplay() {
       let currentTimeMs = audioPlayer.currentTime * 1000;
       let newIndex = -1;
@@ -309,7 +346,7 @@
         let surahStr = ("000" + surah).slice(-3);
         let ayahStr = ("000" + currentAyah).slice(-3);
         let wordIndexStr = ("000" + (newIndex + 1)).slice(-3);
-        indexDisplay.textContent = `Index: ${surahStr}:${ayahStr}:${wordIndexStr}`;
+        indexRow.textContent = `Index: ${surahStr}:${ayahStr}:${wordIndexStr}`;
       }
       requestAnimationFrame(updateDisplay);
     }
