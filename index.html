@@ -15,16 +15,19 @@
     body {
       font-family: "Courier New", monospace;
       background: #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1em;
+      text-align: center;
     }
     #container {
       width: 90%;
       max-width: 800px;
       margin: auto;
-      padding: 1em;
     }
-    /* Start Screen Styling */
+    /* Start screen styling */
     #startScreen {
-      text-align: center;
       margin-bottom: 2em;
     }
     #versionInfo {
@@ -50,67 +53,49 @@
       padding: 0.5em;
       margin-top: 0.3em;
     }
-    /* Player Section Styling */
-    /* The fixedArabic container is fixed at the top and never moves */
-    #fixedArabic {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      /* Mobile default: 50% of viewport height */
-      height: 50vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      pointer-events: none;  /* so that clicks go to underlying elements if needed */
+    /* Player section styling */
+    #playerSection {
+      display: none;
     }
-    /* For wider screens, reduce the Arabic container height to 25vh */
-    @media (min-width: 800px) {
-      #fixedArabic {
+    /* The display area is divided into two parts:
+       - The Arabic container (fixed height so it never shifts)
+       - The translation (which will push controls down if it wraps) */
+    #display {
+      margin: 1em 0;
+    }
+    .arabic-container {
+      /* On mobile (max-width:600px), take up 50% of viewport height; otherwise 25% */
+      height: 50vh;
+    }
+    @media (min-width:600px) {
+      .arabic-container {
         height: 25vh;
       }
     }
-    /* The translation container is placed immediately below the fixed Arabic container */
-    #translationContainer {
-      margin-top: 50vh;
-      text-align: center;
-      padding: 0 1em;
-      word-wrap: break-word;
-      white-space: normal;
+    .arabic {
+      /* Dynamic scaling without an upper cap */
+      font-size: 8vw;
     }
-    @media (min-width: 800px) {
-      #translationContainer {
-        margin-top: 25vh;
+    @media (min-width:600px) {
+      .arabic {
+        font-size: 4vw;
       }
     }
-    /* Player Controls */
-    #controls {
-      text-align: center;
-      margin-top: 2em;
+    .english {
+      /* Dynamic scaling for translation text */
+      font-size: 4vw;
+    }
+    @media (min-width:600px) {
+      .english {
+        font-size: 2vw;
+      }
     }
     #playPause {
       font-size: 1.2rem;
       padding: 0.5em 1em;
     }
-    /* Responsive Font Sizing */
-    /* Base Arabic text: relative size (capped at 70px on desktop) */
-    .arabic {
-      font-size: 8vw;
-    }
-    .english {
-      font-size: 4vw;
-    }
-    @media (min-width: 800px) {
-      .arabic {
-        font-size: 70px;
-      }
-      .english {
-        font-size: 35px;
-      }
-    }
-    /* On very small screens, adjust form layout */
-    @media (max-width: 600px) {
+    /* For narrow screens, stack form fields vertically */
+    @media (max-width:600px) {
       form {
         flex-direction: column;
       }
@@ -123,7 +108,7 @@
     <div id="startScreen">
       <h1>Quran Player</h1>
       <div id="versionInfo">
-        Version: 3 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
+        Version: 4 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
       </div>
       <form id="playerForm">
         <label>
@@ -139,36 +124,34 @@
     </div>
 
     <!-- Player Section -->
-    <div id="playerSection" style="display:none;">
-      <!-- Fixed Arabic Text -->
-      <div id="fixedArabic">
-        <span id="arabicText" class="arabic"></span>
+    <div id="playerSection">
+      <h2 id="header"></h2>
+      <div id="display">
+        <div class="arabic-container">
+          <span id="arabicText" class="arabic"></span>
+        </div>
+        <div id="englishText" class="english"></div>
       </div>
-      <!-- Translation (flows below the fixed Arabic container) -->
-      <div id="translationContainer">
-        <span id="englishText" class="english"></span>
-      </div>
-      <div id="controls">
-        <button id="playPause">Pause</button>
-        <br>
-        <audio id="audioPlayer" controls></audio>
-      </div>
+      <button id="playPause">Pause</button>
+      <br>
+      <audio id="audioPlayer" controls></audio>
     </div>
   </div>
 
   <script>
-    // VERSION: Change this constant to update the version number.
+    // VERSION constant defined at the top for easy updating
     const VERSION = "3";
-    
+
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
     let data = null;
     let currentAyah = 0;
     let surah = 0;
-    let ayahWords = [];  // Array of word objects with scheduled display times (in ms)
+    let ayahWords = []; // Array of word objects with scheduled display times (in ms)
     let playing = true;
     const audioPlayer = document.getElementById("audioPlayer");
     const arabicText = document.getElementById("arabicText");
     const englishText = document.getElementById("englishText");
+    const header = document.getElementById("header");
     const playPauseButton = document.getElementById("playPause");
     let lastDisplayedIndex = -1;
 
@@ -194,12 +177,13 @@
     }
 
     function playAyah(ayah) {
+      header.innerText = `Surah ${("000" + surah).slice(-3)}, Ayah ${("000" + ayah).slice(-3)}`;
       const surahStr = ("000" + surah).slice(-3);
       const ayahStr = ("000" + ayah).slice(-3);
       const ayahData = data[String(ayah)];
       if (!ayahData) return;
 
-      // Build an array of words with scheduled display times (in ms, 0.1 sec offset).
+      // Build an array of words with scheduled display times (in ms, with a 0.1 sec offset).
       ayahWords = ayahData["w"].map(word => ({
         scheduledTime: (parseFloat(word["b"]) - 0.1) * 1000,
         c: word["c"],
@@ -214,7 +198,7 @@
       // Wait until the audio can play through before starting playback and text updates.
       audioPlayer.oncanplaythrough = function() {
         audioPlayer.play();
-        updateDisplay();
+        updateDisplay(); // Start the update loop.
       };
 
       // Pre-buffer the next three ayahs if available.
@@ -249,7 +233,7 @@
       if (newIndex !== lastDisplayedIndex && newIndex >= 0) {
         lastDisplayedIndex = newIndex;
         let word = ayahWords[newIndex];
-        // Update the fixed Arabic text and the flowing translation.
+        // Update the Arabic text (in its fixed-height container) and the flowing English translation.
         arabicText.innerHTML = word.c;
         englishText.innerHTML = word.e;
       }
