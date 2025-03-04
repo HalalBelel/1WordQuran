@@ -11,12 +11,12 @@
       --header-height: 90px;
     }
 
-    /* Remove normal page scrolling; we'll scroll inside a container. */
+    /* Remove normal page scrolling; we’ll scroll inside the translation container. */
     html, body {
       margin: 0;
       padding: 0;
       height: 100%;
-      overflow: hidden; /* So the pinned Arabic never overlaps on scroll. */
+      overflow: hidden; /* So pinned Arabic never overlaps on scroll. */
     }
     body {
       font-family: "Courier New", monospace;
@@ -24,7 +24,7 @@
       text-align: center;
     }
 
-    /* Container for all content */
+    /* Container for everything */
     #container {
       width: 90%;
       max-width: 800px;
@@ -33,10 +33,10 @@
       height: 100%;
     }
 
-    /* Start screen styling */
+    /* Start Screen */
     #startScreen {
-      margin-top: calc(var(--header-height) + 10px); 
-      /* So it's not hidden behind the fixed header on load */
+      margin-top: calc(var(--header-height) + 10px);
+      /* So it’s not hidden behind the fixed header on load */
     }
     #versionInfo {
       font-size: 1rem;
@@ -69,9 +69,9 @@
       height: 100%;
     }
 
-    /* Fixed Header (90px tall) with two lines:
-       1) Audio controls
-       2) Index, truncated if too wide */
+    /* Fixed Header (90px tall), with two “rows”:  
+       1) Audio controls  
+       2) Index (truncated) */
     #headerControls {
       position: fixed;
       top: 0;
@@ -84,46 +84,47 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       z-index: 10;
       display: flex;
-      flex-direction: column; /* Stack the audio on the first line, index on second */
+      flex-direction: column; /* stack audio + index vertically */
       align-items: center;
       justify-content: center;
       padding: 0.5em;
       box-sizing: border-box;
+      overflow: hidden; /* ensures we stay at 90px total height */
     }
 
-    /* Top line: audio controls */
+    /* First row: audio controls */
     #audioRow {
       margin-bottom: 0.3em;
+      /* If you want to ensure the audio is truncated or not, you can add ellipsis here,  
+         but typically the browser shrinks the audio control if needed. */
     }
 
-    /* Second line: index display, truncated if too wide */
+    /* Second row: index display, truncated if too long */
     #indexDisplay {
       font-size: 1.2rem;
       color: #333;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      width: 90%; /* Truncate if longer than 90% of the header width */
+      width: 90%; /* If the text is longer than 90% of header width, it’ll be truncated */
       box-sizing: border-box;
     }
 
-    /*
-      Arabic text pinned at 40% of the remaining screen height
-      after subtracting the header.
+    /* 
+      Arabic text pinned at 40% of the remaining screen height  
+      after subtracting the header.  
 
-      Calculation:
-        - Subtract header from total: (100vh - var(--header-height))
-        - Take 40% of that remainder
-        - Add back the header offset
-
-      So: top: var(--header-height) + 0.4*(100vh - var(--header-height))
+      Calculation:  
+        (100vh - var(--header-height)) is the “remaining” height.  
+        0.4 * that remainder.  
+        Then we add var(--header-height) to offset from the top.
     */
     #fixedArabic {
       position: fixed;
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      height: 70px; /* Arabic line height */
+      height: 60px; /* Arabic line height is 60px now */
       top: calc(
         var(--header-height) + 
         0.4 * (100vh - var(--header-height))
@@ -131,24 +132,22 @@
       pointer-events: none;
     }
     .arabic {
-      font-size: 70px;
-      line-height: 70px;
+      font-size: 60px; /* Hardcoded Arabic font size */
+      line-height: 60px;
       word-wrap: break-word;
       white-space: normal;
     }
 
-    /* Scrollable container for translation below pinned Arabic. 
-       We'll position it starting below the Arabic by 10px. 
-       Then let it fill up the remaining space to the bottom. */
+    /* Scrollable container for translation below pinned Arabic.  
+       Start 10px below the Arabic block. */
     #translationContainer {
       position: absolute;
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      /* Start 20px below the Arabic block */
       top: calc(
         var(--header-height) + 
-        0.4 * (100vh - var(--header-height)) + 70px + 20px
+        0.4 * (100vh - var(--header-height)) + 60px + 10px
       );
       bottom: 0; /* fill the rest of the screen */
       overflow-y: auto;
@@ -157,8 +156,8 @@
       white-space: normal;
     }
     .english {
-      font-size: 35px;
-      line-height: 35px;
+      font-size: 30px; /* Hardcoded English font size */
+      line-height: 30px;
     }
 
     /* For narrow screens, stack form fields vertically */
@@ -171,11 +170,11 @@
 </head>
 <body>
   <div id="container">
-    <!-- Start Screen with Version and Timestamp -->
+    <!-- Start Screen -->
     <div id="startScreen">
       <h1>Quran Player</h1>
       <div id="versionInfo">
-        Version: 4 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
+        Version: 10 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
       </div>
       <form id="playerForm">
         <label>
@@ -192,7 +191,7 @@
 
     <!-- Player Section -->
     <div id="playerSection">
-      <!-- Fixed header, 2 lines: audio row, then index row -->
+      <!-- Fixed header (90px) with 2 lines: audio row, index row -->
       <div id="headerControls">
         <div id="audioRow">
           <audio id="audioPlayer" controls></audio>
@@ -200,12 +199,12 @@
         <div id="indexDisplay"></div>
       </div>
 
-      <!-- Arabic pinned at 40% of the remaining height after header -->
+      <!-- Arabic pinned at 40% of remaining height after header -->
       <div id="fixedArabic">
         <span id="arabicText" class="arabic"></span>
       </div>
 
-      <!-- Scrollable translation container below the Arabic -->
+      <!-- Scrollable translation container below Arabic -->
       <div id="translationContainer">
         <span id="englishText" class="english"></span>
       </div>
@@ -213,7 +212,7 @@
   </div>
 
   <script>
-    const VERSION = "5";
+    const VERSION = "10";
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
     let data = null;
     let currentAyah = 0;
