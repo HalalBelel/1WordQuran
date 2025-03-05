@@ -2,31 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- Ensures proper scaling on mobile devices -->
+  <!-- Ensure proper scaling on mobile devices -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quran Player on GitHub Pages</title>
   <style>
     :root {
-      /* The header's height. Increase if needed. */
-      --header-height: 60px;
-      /* We'll update this in JS to match window.innerHeight. */
-      --app-height: 100vh;
+      --header-height: 120px; /* Height for header (audio controls + index) */
+      --app-height: 100vh;    /* We'll update this dynamically */
     }
-
-    /* Disable normal page scrolling; we use scroll containers. */
+    /* Prevent normal page scrolling */
     html, body {
       margin: 0;
       padding: 0;
       height: 100%;
-      overflow: hidden; /* So pinned Arabic never overlaps on scroll. */
+      overflow: hidden;
     }
     body {
       font-family: "Courier New", monospace;
       background: #f0f0f0;
       text-align: center;
     }
-
-    /* Main container takes the entire screen height. */
+    /* Main container fills the screen */
     #container {
       width: 90%;
       max-width: 800px;
@@ -34,12 +30,10 @@
       position: relative;
       height: 100%;
     }
-
-    /* Start screen is scrollable if it overflows. */
+    /* Start screen (scrollable if needed) */
     #startScreen {
       position: relative;
       margin-top: calc(var(--header-height) + 10px);
-      /* Fill the rest of the screen below the header. */
       height: calc(var(--app-height) - var(--header-height) - 20px);
       overflow-y: auto;
     }
@@ -66,15 +60,13 @@
       padding: 0.5em;
       margin-top: 0.3em;
     }
-
-    /* Player section hidden until user submits the form. */
+    /* Player section takes full height */
     #playerSection {
       display: none;
       position: relative;
       height: 100%;
     }
-
-    /* Single-row header with audio on left, index on right. */
+    /* Header: single row with audio on left and index on right */
     #headerControls {
       position: fixed;
       top: 0;
@@ -87,44 +79,39 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       z-index: 10;
       display: flex;
-      flex-wrap: nowrap;        /* single row */
+      flex-wrap: nowrap;
       align-items: center;
       justify-content: space-between;
       box-sizing: border-box;
       padding: 0.5em 1em;
     }
-
-    /* Audio on the left. */
+    /* Audio control on the left */
     #audioPlayer {
-      flex-shrink: 0; /* Don't shrink the audio player. */
+      flex-shrink: 0;
       margin-right: 1em;
     }
-
-    /* Index on the right, truncated if too long. */
+    /* Index on the right; truncates if too long */
     #indexDisplay {
       font-size: 1.2rem;
       color: #333;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      flex: 1;           /* take remaining space */
-      text-align: right; /* align text to the right */
+      flex: 1;
+      text-align: right;
     }
-
     /*
-      Arabic pinned at 30% of leftover (var(--app-height) - var(--header-height))
-      top = var(--header-height) + 0.3*(var(--app-height) - var(--header-height))
+      Arabic text is pinned at 30% of the remaining height after header.
+      Calculation:
+         top = var(--header-height) + 0.3*(var(--app-height) - var(--header-height))
     */
     #fixedArabic {
       position: fixed;
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      height: 60px; /* For 60px font */
-      top: calc(
-        var(--header-height) +
-        0.3 * (var(--app-height) - var(--header-height))
-      );
+      height: 60px; /* for 60px font */
+      top: calc(var(--header-height) + 0.3 * (var(--app-height) - var(--header-height)));
       pointer-events: none;
     }
     .arabic {
@@ -133,18 +120,15 @@
       word-wrap: break-word;
       white-space: normal;
     }
-
-    /* Translation container below Arabic, scrollable. */
+    /*
+      The translation container is placed 20px below the Arabic text and extends to the bottom.
+    */
     #translationContainer {
       position: absolute;
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      /* Start 20px below Arabic block. */
-      top: calc(
-        var(--header-height) +
-        0.3 * (var(--app-height) - var(--header-height)) + 60px + 20px
-      );
+      top: calc(var(--header-height) + 0.3 * (var(--app-height) - var(--header-height)) + 60px + 20px);
       bottom: 0;
       overflow-y: auto;
       text-align: center;
@@ -155,8 +139,7 @@
       font-size: 30px; /* Hardcoded English font size */
       line-height: 30px;
     }
-
-    /* For narrow screens, stack form fields vertically. */
+    /* For narrow screens, stack form fields vertically */
     @media (max-width: 600px) {
       form {
         flex-direction: column;
@@ -170,7 +153,7 @@
     <div id="startScreen">
       <h1>Quran Player</h1>
       <div id="versionInfo">
-        Version: 1
+        Version: 200
       </div>
       <form id="playerForm">
         <label>
@@ -184,21 +167,18 @@
         <button type="submit">Play</button>
       </form>
     </div>
-
     <!-- Player Section -->
     <div id="playerSection">
-      <!-- Single-row header: audio on left, index on right. -->
+      <!-- Header Controls: audio player and index -->
       <div id="headerControls">
         <audio id="audioPlayer" controls></audio>
         <div id="indexDisplay"></div>
       </div>
-
-      <!-- Pinned Arabic text at 30% leftover height -->
+      <!-- Fixed Arabic Text -->
       <div id="fixedArabic">
         <span id="arabicText" class="arabic"></span>
       </div>
-
-      <!-- Scrollable translation container -->
+      <!-- Scrollable Translation Container -->
       <div id="translationContainer">
         <span id="englishText" class="english"></span>
       </div>
@@ -206,7 +186,7 @@
   </div>
 
   <script>
-    const VERSION = "11";
+    const VERSION = "10";
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
     let data = null;
     let currentAyah = 0;
@@ -219,20 +199,48 @@
     const englishText = document.getElementById("englishText");
     const indexDisplay = document.getElementById("indexDisplay");
 
-    // Dynamically update --app-height so we recalc on rotation.
+    // Wake Lock variables and function
+    let wakeLock = null;
+    async function requestWakeLock() {
+      if ('wakeLock' in navigator) {
+        try {
+          wakeLock = await navigator.wakeLock.request('screen');
+          wakeLock.addEventListener('release', () => {
+            console.log('Screen Wake Lock was released');
+          });
+          console.log('Screen Wake Lock is active');
+        } catch (err) {
+          console.error(`Wake Lock error: ${err.name}, ${err.message}`);
+        }
+      }
+    }
+
+    // Reacquire wake lock on visibility change
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState === 'visible' && wakeLock === null) {
+        await requestWakeLock();
+      }
+    });
+
+    // Set dynamic app height variable
     function setAppHeight() {
       document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
     }
     window.addEventListener('resize', setAppHeight);
     window.addEventListener('orientationchange', setAppHeight);
-    // Call once at start
     setAppHeight();
+
+    // Update URL with current surah and ayah for bookmarking
+    function updateURL() {
+      const newUrl = `${window.location.pathname}?surah=${surah}&ayah=${currentAyah}`;
+      history.replaceState(null, '', newUrl);
+    }
 
     document.getElementById("playerForm").addEventListener("submit", function(e) {
       e.preventDefault();
       surah = parseInt(document.getElementById("surah").value);
       currentAyah = parseInt(document.getElementById("ayah").value);
-      // Hide the start screen, show the player
+      updateURL();
       document.getElementById("startScreen").style.display = "none";
       document.getElementById("playerSection").style.display = "block";
       loadSurahData(surah).then(() => {
@@ -250,12 +258,13 @@
     }
 
     function playAyah(ayah) {
+      currentAyah = ayah;
+      updateURL();
       const surahStr = ("000" + surah).slice(-3);
       const ayahStr = ("000" + ayah).slice(-3);
       const ayahData = data[String(ayah)];
       if (!ayahData) return;
 
-      // Build array of words with scheduled times
       ayahWords = ayahData["w"].map(word => ({
         scheduledTime: (parseFloat(word["b"]) - 0.1) * 1000,
         c: word["c"],
@@ -268,6 +277,7 @@
 
       audioPlayer.oncanplaythrough = function() {
         audioPlayer.play();
+        requestWakeLock();
         updateDisplay();
       };
 
