@@ -7,13 +7,13 @@
   <title>Quran Player on GitHub Pages</title>
   <style>
     :root {
-      /* Fixed control bar height at bottom */
-      --control-height: 40px;
-      /* We'll update this dynamically to match window.innerHeight */
+      /* Control bar fixed at bottom: height 50px */
+      --control-height: 50px;
+      /* We'll update app height dynamically */
       --app-height: 100vh;
     }
 
-    /* Prevent normal page scrolling; we use scrollable containers instead */
+    /* Prevent normal scrolling; we'll scroll within our containers */
     html, body {
       margin: 0;
       padding: 0;
@@ -25,7 +25,8 @@
       background: #f0f0f0;
       text-align: center;
     }
-    /* Main container fills the screen */
+
+    /* Main container */
     #container {
       width: 90%;
       max-width: 800px;
@@ -72,7 +73,7 @@
       height: 100%;
     }
 
-    /* Fixed controls (audio player and index) at bottom */
+    /* Control Bar fixed at bottom */
     #footerControls {
       position: fixed;
       bottom: 0;
@@ -90,12 +91,12 @@
       box-sizing: border-box;
       padding: 0 0.5em;
     }
-    /* Audio player on the left */
+    /* Audio controls on left */
     #audioPlayer {
       flex-shrink: 0;
       margin-right: 1em;
     }
-    /* Index on the right, truncated if needed */
+    /* Index display on right; truncated if too long */
     #indexDisplay {
       font-size: 1.2rem;
       color: #333;
@@ -106,36 +107,37 @@
       text-align: right;
     }
 
-    /*
-      Fixed Arabic text is pinned at 30% of the full window height.
-      We'll use 30vh as its top position.
-    */
+    /* Fixed Arabic container: occupies 20vh and is placed exactly at 20vh from the top */
     #fixedArabic {
       position: fixed;
-      top: 30vh;
+      top: 20vh;
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      height: 60px; /* for 60px font */
+      height: 20vh;
       pointer-events: none;
     }
     .arabic {
-      font-size: 60px; /* Hardcoded Arabic font size */
-      line-height: 60px;
+      font-size: 60px;  /* Hardcoded Arabic font size */
+      line-height: 1;   /* Let the text vertically center within the container as needed */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
       word-wrap: break-word;
       white-space: normal;
     }
 
-    /*
-      The translation container is scrollable and sits immediately below the fixed Arabic text,
-      with a 10px gap. Its bottom is set to the control bar's top.
+    /* Scrollable Translation Container:
+       Starts 10px below the Arabic container.
+       Bottom is fixed above the control bar.
     */
     #translationContainer {
       position: absolute;
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      top: calc(30vh + 60px + 10px);
+      top: calc(20vh + 20vh + 10px);  /* 20vh for Arabic container + 10px gap */
       bottom: var(--control-height);
       overflow-y: auto;
       text-align: center;
@@ -144,11 +146,11 @@
     }
     .english {
       font-size: 30px; /* Hardcoded English font size */
-      line-height: 30px;
+      line-height: 1;
     }
 
     /* For narrow screens, stack form fields vertically */
-    @media (max-width: 600px) {
+    @media (max-width:600px) {
       form {
         flex-direction: column;
       }
@@ -157,11 +159,11 @@
 </head>
 <body>
   <div id="container">
-    <!-- Start Screen with Version and Static Timestamp -->
+    <!-- Start Screen -->
     <div id="startScreen">
       <h1>Quran Player</h1>
       <div id="versionInfo">
-        Version: 300
+        Version: 12 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
       </div>
       <form id="playerForm">
         <label>
@@ -178,18 +180,18 @@
 
     <!-- Player Section -->
     <div id="playerSection">
-      <!-- Fixed controls at bottom -->
+      <!-- Fixed Control Bar at Bottom -->
       <div id="footerControls">
         <audio id="audioPlayer" controls></audio>
         <div id="indexDisplay"></div>
       </div>
 
-      <!-- Fixed Arabic text at 30vh -->
+      <!-- Fixed Arabic Container at 20vh from top, height 20vh -->
       <div id="fixedArabic">
         <span id="arabicText" class="arabic"></span>
       </div>
 
-      <!-- Scrollable translation container -->
+      <!-- Scrollable Translation Container -->
       <div id="translationContainer">
         <span id="englishText" class="english"></span>
       </div>
@@ -210,7 +212,7 @@
     const englishText = document.getElementById("englishText");
     const indexDisplay = document.getElementById("indexDisplay");
 
-    // Dynamically update --app-height for rotation/resizing
+    // Update --app-height dynamically to handle rotation/resizing
     function setAppHeight() {
       document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
     }
@@ -218,7 +220,7 @@
     window.addEventListener('orientationchange', setAppHeight);
     setAppHeight();
 
-    // Auto-populate start screen inputs from URL if provided
+    // Auto-populate start screen inputs from URL if available
     const urlParams = new URLSearchParams(window.location.search);
     if(urlParams.has('surah')) {
       document.getElementById("surah").value = urlParams.get('surah');
@@ -233,7 +235,7 @@
       history.replaceState(null, '', newUrl);
     }
 
-    // Request wake lock to prevent mobile screen from idling
+    // Request wake lock to prevent mobile idling
     let wakeLock = null;
     async function requestWakeLock() {
       if ('wakeLock' in navigator) {
