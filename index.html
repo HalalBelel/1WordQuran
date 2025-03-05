@@ -7,13 +7,13 @@
   <title>Quran Player on GitHub Pages</title>
   <style>
     :root {
-      /* Header is now 40px tall */
-      --header-height: 40px;
+      /* Fixed control bar height at bottom */
+      --control-height: 40px;
       /* We'll update this dynamically to match window.innerHeight */
       --app-height: 100vh;
     }
 
-    /* Disable normal page scrolling; we use scrollable containers */
+    /* Prevent normal page scrolling; we use scrollable containers instead */
     html, body {
       margin: 0;
       padding: 0;
@@ -25,7 +25,6 @@
       background: #f0f0f0;
       text-align: center;
     }
-
     /* Main container fills the screen */
     #container {
       width: 90%;
@@ -35,11 +34,11 @@
       height: 100%;
     }
 
-    /* Start screen styling */
+    /* Start Screen (scrollable if needed) */
     #startScreen {
       position: relative;
-      margin-top: calc(var(--header-height) + 10px);
-      height: calc(var(--app-height) - var(--header-height) - 20px);
+      margin-top: 10px;
+      height: calc(var(--app-height) - 20px);
       overflow-y: auto;
     }
     #versionInfo {
@@ -73,17 +72,17 @@
       height: 100%;
     }
 
-    /* Fixed Header: single row with audio on left and index on right */
-    #headerControls {
+    /* Fixed controls (audio player and index) at bottom */
+    #footerControls {
       position: fixed;
-      top: 0;
+      bottom: 0;
       left: 50%;
       transform: translateX(-50%);
       width: 100%;
       max-width: 800px;
-      height: var(--header-height);
+      height: var(--control-height);
       background: #ffffff;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
       z-index: 10;
       display: flex;
       align-items: center;
@@ -96,7 +95,7 @@
       flex-shrink: 0;
       margin-right: 1em;
     }
-    /* Index on the right; truncated if too wide */
+    /* Index on the right, truncated if needed */
     #indexDisplay {
       font-size: 1.2rem;
       color: #333;
@@ -108,17 +107,16 @@
     }
 
     /*
-      Fixed Arabic text is pinned at 30% of the remaining height 
-      after subtracting the header.
-      Calculation: top = var(--header-height) + 0.3 * (var(--app-height) - var(--header-height))
+      Fixed Arabic text is pinned at 30% of the full window height.
+      We'll use 30vh as its top position.
     */
     #fixedArabic {
       position: fixed;
+      top: 30vh;
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      height: 60px; /* For a 60px font */
-      top: calc(var(--header-height) + 0.3 * (var(--app-height) - var(--header-height)));
+      height: 60px; /* for 60px font */
       pointer-events: none;
     }
     .arabic {
@@ -129,16 +127,16 @@
     }
 
     /*
-      The scrollable translation container is placed 20px below the fixed Arabic text
-      and extends to the bottom.
+      The translation container is scrollable and sits immediately below the fixed Arabic text,
+      with a 10px gap. Its bottom is set to the control bar's top.
     */
     #translationContainer {
       position: absolute;
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      top: calc(var(--header-height) + 0.3 * (var(--app-height) - var(--header-height)) + 60px + 20px);
-      bottom: 0;
+      top: calc(30vh + 60px + 10px);
+      bottom: var(--control-height);
       overflow-y: auto;
       text-align: center;
       word-wrap: break-word;
@@ -150,7 +148,7 @@
     }
 
     /* For narrow screens, stack form fields vertically */
-    @media (max-width:600px) {
+    @media (max-width: 600px) {
       form {
         flex-direction: column;
       }
@@ -163,7 +161,7 @@
     <div id="startScreen">
       <h1>Quran Player</h1>
       <div id="versionInfo">
-        Version: 12 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
+        Version: 300
       </div>
       <form id="playerForm">
         <label>
@@ -180,18 +178,18 @@
 
     <!-- Player Section -->
     <div id="playerSection">
-      <!-- Fixed Header with audio controls on left and index on right -->
-      <div id="headerControls">
+      <!-- Fixed controls at bottom -->
+      <div id="footerControls">
         <audio id="audioPlayer" controls></audio>
         <div id="indexDisplay"></div>
       </div>
 
-      <!-- Fixed Arabic Text -->
+      <!-- Fixed Arabic text at 30vh -->
       <div id="fixedArabic">
         <span id="arabicText" class="arabic"></span>
       </div>
 
-      <!-- Scrollable Translation Container -->
+      <!-- Scrollable translation container -->
       <div id="translationContainer">
         <span id="englishText" class="english"></span>
       </div>
@@ -212,7 +210,7 @@
     const englishText = document.getElementById("englishText");
     const indexDisplay = document.getElementById("indexDisplay");
 
-    // Dynamically update --app-height for proper recalculation on resize/orientation change
+    // Dynamically update --app-height for rotation/resizing
     function setAppHeight() {
       document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
     }
@@ -220,15 +218,13 @@
     window.addEventListener('orientationchange', setAppHeight);
     setAppHeight();
 
-    // Auto-populate start screen inputs if URL has query parameters
+    // Auto-populate start screen inputs from URL if provided
     const urlParams = new URLSearchParams(window.location.search);
-    const surahParam = urlParams.get('surah');
-    const ayahParam = urlParams.get('ayah');
-    if (surahParam !== null) {
-      document.getElementById("surah").value = surahParam;
+    if(urlParams.has('surah')) {
+      document.getElementById("surah").value = urlParams.get('surah');
     }
-    if (ayahParam !== null) {
-      document.getElementById("ayah").value = ayahParam;
+    if(urlParams.has('ayah')) {
+      document.getElementById("ayah").value = urlParams.get('ayah');
     }
 
     // Update URL with current surah and ayah for bookmarking
@@ -237,7 +233,7 @@
       history.replaceState(null, '', newUrl);
     }
 
-    // Screen Wake Lock API to prevent mobile from idling
+    // Request wake lock to prevent mobile screen from idling
     let wakeLock = null;
     async function requestWakeLock() {
       if ('wakeLock' in navigator) {
