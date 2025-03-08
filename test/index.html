@@ -7,11 +7,12 @@
   <title>Quran Player on GitHub Pages</title>
   <style>
     :root {
-      /* Control bar fixed at bottom: height 50px */
-      --control-height: 50px;
+      /* Control bar fixed at bottom: height 60px (you can change if needed) */
+      --control-height: 60px;
       /* We'll update app height dynamically */
       --app-height: 100vh;
     }
+
     /* Prevent normal scrolling; we'll scroll within our containers */
     html, body {
       margin: 0;
@@ -24,6 +25,7 @@
       background: #f0f0f0;
       text-align: center;
     }
+
     /* Main container */
     #container {
       width: 90%;
@@ -32,6 +34,7 @@
       position: relative;
       height: 100%;
     }
+
     /* Start Screen (scrollable if needed) */
     #startScreen {
       position: relative;
@@ -62,13 +65,15 @@
       padding: 0.5em;
       margin-top: 0.3em;
     }
+
     /* Player Section */
     #playerSection {
       display: none;
       position: relative;
       height: 100%;
     }
-    /* Fixed Control Bar at Bottom */
+
+    /* Control Bar fixed at bottom */
     #footerControls {
       position: fixed;
       bottom: 0;
@@ -101,7 +106,8 @@
       flex: 1;
       text-align: right;
     }
-    /* Fixed Arabic container: occupies exactly 20vh and is placed at 20vh from the top */
+
+    /* Fixed Arabic container: occupies 20vh and is placed exactly at 20vh from the top */
     #fixedArabic {
       position: fixed;
       top: 20vh;
@@ -113,7 +119,7 @@
     }
     .arabic {
       font-size: 60px;  /* Hardcoded Arabic font size */
-      line-height: 20vh; /* Vertically center text within 20vh */
+      line-height: 1;   /* Let the text vertically center within the container as needed */
       display: flex;
       align-items: center;
       justify-content: center;
@@ -121,15 +127,17 @@
       word-wrap: break-word;
       white-space: normal;
     }
+
     /* Scrollable Translation Container:
-       Starts 10px below the Arabic container and extends to the top of the control bar.
+       Starts 10px below the Arabic container.
+       Bottom is fixed above the control bar.
     */
     #translationContainer {
       position: absolute;
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      top: calc(20vh + 70px);  /* Arabic container (20vh) + its bottom at 20vh + 10px gap */
+      top: calc(20vh + 80px);  /* 20vh for Arabic container + 10px gap */
       bottom: var(--control-height);
       overflow-y: auto;
       text-align: center;
@@ -140,6 +148,7 @@
       font-size: 30px; /* Hardcoded English font size */
       line-height: 1;
     }
+
     /* For narrow screens, stack form fields vertically */
     @media (max-width:600px) {
       form {
@@ -153,7 +162,9 @@
     <!-- Start Screen -->
     <div id="startScreen">
       <h1>Quran Player</h1>
-      <div id="versionInfo"></div>
+      <div id="versionInfo">
+        Version: t2
+      </div>
       <form id="playerForm">
         <label>
           Surah:
@@ -166,6 +177,7 @@
         <button type="submit">Play</button>
       </form>
     </div>
+
     <!-- Player Section -->
     <div id="playerSection">
       <!-- Fixed Control Bar at Bottom -->
@@ -173,27 +185,31 @@
         <audio id="audioPlayer" controls></audio>
         <div id="indexDisplay"></div>
       </div>
-      <!-- Fixed Arabic Container -->
+
+      <!-- Fixed Arabic Container at 20vh from top, height 20vh -->
       <div id="fixedArabic">
         <span id="arabicText" class="arabic"></span>
       </div>
+
       <!-- Scrollable Translation Container -->
       <div id="translationContainer">
         <span id="englishText" class="english"></span>
       </div>
     </div>
   </div>
-  <script>
-    // Set version using document.lastModified in Australian format.
-    const modifiedDate = new Date(document.lastModified);
-    document.getElementById("versionInfo").textContent = "Version: "
 
-    // Detect if we're in a "test" subfolder by checking the URL path.
+  <script>
+    const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
+
+    // 1) DETECT if we're in a "test" subfolder by checking the URL path
     const isTest = window.location.pathname.includes("/test/");
 
-    // Build JSON path accordingly.
+    // 2) Build the JSON path accordingly
     function getJsonPath(surah) {
-      return isTest ? `../json/${surah}.json` : `json/${surah}.json`;
+      // If we detect "/test/" in the path, fetch from "../json", else from "json"
+      return isTest
+        ? `../json/${surah}.json`
+        : `json/${surah}.json`;
     }
 
     let data = null;
@@ -207,7 +223,7 @@
     const englishText = document.getElementById("englishText");
     const indexDisplay = document.getElementById("indexDisplay");
 
-    // Update --app-height dynamically on resize/orientation change.
+    // Update --app-height dynamically to handle rotation/resizing
     function setAppHeight() {
       document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
     }
@@ -215,22 +231,22 @@
     window.addEventListener('orientationchange', setAppHeight);
     setAppHeight();
 
-    // Auto-populate start screen inputs from URL query parameters if available.
+    // Auto-populate start screen inputs from URL if available
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('surah')) {
+    if(urlParams.has('surah')) {
       document.getElementById("surah").value = urlParams.get('surah');
     }
-    if (urlParams.has('ayah')) {
+    if(urlParams.has('ayah')) {
       document.getElementById("ayah").value = urlParams.get('ayah');
     }
 
-    // Update URL with current surah and ayah for bookmarking.
+    // Update URL with current surah and ayah for bookmarking
     function updateURL() {
       const newUrl = `${window.location.pathname}?surah=${surah}&ayah=${currentAyah}`;
       history.replaceState(null, '', newUrl);
     }
 
-    // Request wake lock to prevent mobile screen idling.
+    // Request wake lock to prevent mobile idling
     let wakeLock = null;
     async function requestWakeLock() {
       if ('wakeLock' in navigator) {
@@ -263,6 +279,7 @@
       });
     });
 
+    // 3) Use getJsonPath(...) instead of a hardcoded relative path
     async function loadSurahData(surah) {
       try {
         const response = await fetch(getJsonPath(surah));
@@ -296,7 +313,7 @@
         updateDisplay();
       };
 
-      // Pre-buffer next 3 ayahs if available.
+      // Pre-buffer next 3 ayahs if available
       for (let next = ayah + 1; next <= ayah + 3; next++) {
         if (data[String(next)]) {
           let nextAyahStr = ("000" + next).slice(-3);
