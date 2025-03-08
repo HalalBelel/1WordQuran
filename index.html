@@ -137,7 +137,7 @@
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      top: calc(20vh + 20vh + 10px);  /* 20vh for Arabic container + 10px gap */
+      top: calc(20vh + 70px);  /* 20vh for Arabic container + 10px gap */
       bottom: var(--control-height);
       overflow-y: auto;
       text-align: center;
@@ -162,9 +162,7 @@
     <!-- Start Screen -->
     <div id="startScreen">
       <h1>Quran Player</h1>
-      <div id="versionInfo">
-        Version: p2
-      </div>
+      <div id="versionInfo"></div>
       <form id="playerForm">
         <label>
           Surah:
@@ -199,8 +197,9 @@
   </div>
 
   <script>
-    const VERSION = "d1";
-    const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
+    // Set version using document.lastModified so it changes with each commit.
+    document.getElementById("versionInfo").textContent = "Version: " + document.lastModified;
+
 
     // 1) DETECT if we're in a "test" subfolder by checking the URL path
     const isTest = window.location.pathname.includes("/test/");
