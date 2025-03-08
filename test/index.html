@@ -270,7 +270,7 @@
 
     async function loadSurahData(surah) {
       try {
-        const response = await fetch(`json/${surah}.json`);
+        const response = await fetch(`../json/${surah}.json`);
         data = await response.json();
       } catch (err) {
         console.error("Error loading JSON data:", err);
