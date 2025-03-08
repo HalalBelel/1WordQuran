@@ -7,7 +7,7 @@
   <title>Quran Player on GitHub Pages</title>
   <style>
     :root {
-      /* Control bar fixed at bottom: height 50px */
+      /* Control bar fixed at bottom: height 60px (you can change if needed) */
       --control-height: 60px;
       /* We'll update app height dynamically */
       --app-height: 100vh;
@@ -163,7 +163,7 @@
     <div id="startScreen">
       <h1>Quran Player</h1>
       <div id="versionInfo">
-        Version: 13 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
+        Version: p2
       </div>
       <form id="playerForm">
         <label>
@@ -199,8 +199,20 @@
   </div>
 
   <script>
-    const VERSION = "12";
+    const VERSION = "d1";
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
+
+    // 1) DETECT if we're in a "test" subfolder by checking the URL path
+    const isTest = window.location.pathname.includes("/test/");
+
+    // 2) Build the JSON path accordingly
+    function getJsonPath(surah) {
+      // If we detect "/test/" in the path, fetch from "../json", else from "json"
+      return isTest
+        ? `../json/${surah}.json`
+        : `json/${surah}.json`;
+    }
+
     let data = null;
     let currentAyah = 0;
     let surah = 0;
@@ -268,9 +280,10 @@
       });
     });
 
+    // 3) Use getJsonPath(...) instead of a hardcoded relative path
     async function loadSurahData(surah) {
       try {
-        const response = await fetch(`json/${surah}.json`);
+        const response = await fetch(getJsonPath(surah));
         data = await response.json();
       } catch (err) {
         console.error("Error loading JSON data:", err);
