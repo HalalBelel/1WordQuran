@@ -186,7 +186,7 @@
   <script>
     // Set version using document.lastModified in Australian format.
     const modifiedDate = new Date(document.lastModified);
-    document.getElementById("versionInfo").textContent = "Version: " + modifiedDate.toLocaleString("en-AU");
+    document.getElementById("versionInfo").textContent = "Version: "
 
     // Detect if we're in a "test" subfolder by checking the URL path.
     const isTest = window.location.pathname.includes("/test/");
