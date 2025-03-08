@@ -1,1 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Ensure proper scaling on mobile devices -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quran Player on GitHub Pages</title>
+  <style>
+    :root {
+      /* Control bar fixed at bottom: height 50px */
+      --control-height: 60px;
+      /* We'll update app height dynamically */
+      --app-height: 100vh;
+    }
 
+    /* Prevent normal scrolling; we'll scroll within our containers */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+    body {
+      font-family: "Courier New", monospace;
+      background: #f0f0f0;
+      text-align: center;
+    }
+
+    /* Main container */
+    #container {
+      width: 90%;
+      max-width: 800px;
+      margin: auto;
+      position: relative;
+      height: 100%;
+    }
+
+    /* Start Screen (scrollable if needed) */
+    #startScreen {
+      position: relative;
+      margin-top: 10px;
+      height: calc(var(--app-height) - 20px);
+      overflow-y: auto;
+    }
+    #versionInfo {
+      font-size: 1rem;
+      color: #555;
+      margin-bottom: 1em;
+    }
+    form {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 1em;
+    }
+    form label {
+      font-size: 1.2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    input, button {
+      font-size: 1.2rem;
+      padding: 0.5em;
+      margin-top: 0.3em;
+    }
+
+    /* Player Section */
+    #playerSection {
+      display: none;
+      position: relative;
+      height: 100%;
+    }
+
+    /* Control Bar fixed at bottom */
+    #footerControls {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 800px;
+      height: var(--control-height);
+      background: #ffffff;
+      box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-sizing: border-box;
+      padding: 0 0.5em;
+    }
+    /* Audio controls on left */
+    #audioPlayer {
+      flex-shrink: 0;
+      margin-right: 1em;
+    }
+    /* Index display on right; truncated if too long */
+    #indexDisplay {
+      font-size: 1.2rem;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+      text-align: right;
+    }
+
+    /* Fixed Arabic container: occupies 20vh and is placed exactly at 20vh from the top */
+    #fixedArabic {
+      position: fixed;
+      top: 20vh;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      height: 20vh;
+      pointer-events: none;
+    }
+    .arabic {
+      font-size: 60px;  /* Hardcoded Arabic font size */
+      line-height: 1;   /* Let the text vertically center within the container as needed */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      word-wrap: break-word;
+      white-space: normal;
+    }
+
+    /* Scrollable Translation Container:
+       Starts 10px below the Arabic container.
+       Bottom is fixed above the control bar.
+    */
+    #translationContainer {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      top: calc(20vh + 20vh + 10px);  /* 20vh for Arabic container + 10px gap */
+      bottom: var(--control-height);
+      overflow-y: auto;
+      text-align: center;
+      word-wrap: break-word;
+      white-space: normal;
+    }
+    .english {
+      font-size: 30px; /* Hardcoded English font size */
+      line-height: 1;
+    }
+
+    /* For narrow screens, stack form fields vertically */
+    @media (max-width:600px) {
+      form {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <!-- Start Screen -->
+    <div id="startScreen">
+      <h1>Quran Player</h1>
+      <div id="versionInfo">
+        Version: 13 | Written on: 2025-03-03 15:30:00 (Australia/Sydney)
+      </div>
+      <form id="playerForm">
+        <label>
+          Surah:
+          <input type="number" id="surah" required>
+        </label>
+        <label>
+          Ayah:
+          <input type="number" id="ayah" required>
+        </label>
+        <button type="submit">Play</button>
+      </form>
+    </div>
+
+    <!-- Player Section -->
+    <div id="playerSection">
+      <!-- Fixed Control Bar at Bottom -->
+      <div id="footerControls">
+        <audio id="audioPlayer" controls></audio>
+        <div id="indexDisplay"></div>
+      </div>
+
+      <!-- Fixed Arabic Container at 20vh from top, height 20vh -->
+      <div id="fixedArabic">
+        <span id="arabicText" class="arabic"></span>
+      </div>
+
+      <!-- Scrollable Translation Container -->
+      <div id="translationContainer">
+        <span id="englishText" class="english"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const VERSION = "12";
+    const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
+    let data = null;
+    let currentAyah = 0;
+    let surah = 0;
+    let ayahWords = [];
+    let lastDisplayedIndex = -1;
+
+    const audioPlayer = document.getElementById("audioPlayer");
+    const arabicText = document.getElementById("arabicText");
+    const englishText = document.getElementById("englishText");
+    const indexDisplay = document.getElementById("indexDisplay");
+
+    // Update --app-height dynamically to handle rotation/resizing
+    function setAppHeight() {
+      document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
+    }
+    window.addEventListener('resize', setAppHeight);
+    window.addEventListener('orientationchange', setAppHeight);
+    setAppHeight();
+
+    // Auto-populate start screen inputs from URL if available
+    const urlParams = new URLSearchParams(window.location.search);
+    if(urlParams.has('surah')) {
+      document.getElementById("surah").value = urlParams.get('surah');
+    }
+    if(urlParams.has('ayah')) {
+      document.getElementById("ayah").value = urlParams.get('ayah');
+    }
+
+    // Update URL with current surah and ayah for bookmarking
+    function updateURL() {
+      const newUrl = `${window.location.pathname}?surah=${surah}&ayah=${currentAyah}`;
+      history.replaceState(null, '', newUrl);
+    }
+
+    // Request wake lock to prevent mobile idling
+    let wakeLock = null;
+    async function requestWakeLock() {
+      if ('wakeLock' in navigator) {
+        try {
+          wakeLock = await navigator.wakeLock.request('screen');
+          wakeLock.addEventListener('release', () => {
+            console.log('Screen Wake Lock was released');
+          });
+          console.log('Screen Wake Lock is active');
+        } catch (err) {
+          console.error(`${err.name}, ${err.message}`);
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState === 'visible' && wakeLock === null) {
+        await requestWakeLock();
+      }
+    });
+
+    document.getElementById("playerForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      surah = parseInt(document.getElementById("surah").value);
+      currentAyah = parseInt(document.getElementById("ayah").value);
+      updateURL();
+      document.getElementById("startScreen").style.display = "none";
+      document.getElementById("playerSection").style.display = "block";
+      loadSurahData(surah).then(() => {
+        playAyah(currentAyah);
+      });
+    });
+
+    async function loadSurahData(surah) {
+      try {
+        const response = await fetch(`json/${surah}.json`);
+        data = await response.json();
+      } catch (err) {
+        console.error("Error loading JSON data:", err);
+      }
+    }
+
+    function playAyah(ayah) {
+      currentAyah = ayah;
+      updateURL();
+      const surahStr = ("000" + surah).slice(-3);
+      const ayahStr = ("000" + ayah).slice(-3);
+      const ayahData = data[String(ayah)];
+      if (!ayahData) return;
+
+      ayahWords = ayahData["w"].map(word => ({
+        scheduledTime: (parseFloat(word["b"]) - 0.1) * 1000,
+        c: word["c"],
+        e: word["e"]
+      }));
+      lastDisplayedIndex = -1;
+
+      audioPlayer.src = remoteBaseUrl + surahStr + ayahStr + ".mp3";
+      audioPlayer.load();
+
+      audioPlayer.oncanplaythrough = function() {
+        audioPlayer.play();
+        requestWakeLock();
+        updateDisplay();
+      };
+
+      // Pre-buffer next 3 ayahs if available
+      for (let next = ayah + 1; next <= ayah + 3; next++) {
+        if (data[String(next)]) {
+          let nextAyahStr = ("000" + next).slice(-3);
+          let audio = new Audio(remoteBaseUrl + surahStr + nextAyahStr + ".mp3");
+          audio.preload = "auto";
+        }
+      }
+
+      audioPlayer.onended = function() {
+        if (data[String(ayah + 1)]) {
+          currentAyah = ayah + 1;
+          playAyah(currentAyah);
+        }
+      };
+    }
+
+    function updateDisplay() {
+      let currentTimeMs = audioPlayer.currentTime * 1000;
+      let newIndex = -1;
+      for (let i = 0; i < ayahWords.length; i++) {
+        if (ayahWords[i].scheduledTime <= currentTimeMs) {
+          newIndex = i;
+        } else {
+          break;
+        }
+      }
+      if (newIndex !== lastDisplayedIndex && newIndex >= 0) {
+        lastDisplayedIndex = newIndex;
+        const word = ayahWords[newIndex];
+        arabicText.innerHTML = word.c;
+        englishText.innerHTML = word.e;
+
+        let surahStr = ("000" + surah).slice(-3);
+        let ayahStr = ("000" + currentAyah).slice(-3);
+        let wordIndexStr = ("000" + (newIndex + 1)).slice(-3);
+        indexDisplay.textContent = `Index: ${surahStr}:${ayahStr}:${wordIndexStr}`;
+      }
+      requestAnimationFrame(updateDisplay);
+    }
+  </script>
+</body>
+</html>
