@@ -162,9 +162,7 @@
     <!-- Start Screen -->
     <div id="startScreen">
       <h1>Quran Player</h1>
-      <div id="versionInfo">
-        document.getElementById("versionInfo").textContent = "Version: " + document.lastModified;
-      </div>
+      <div id="versionInfo"></div>
       <form id="playerForm">
         <label>
           Surah:
@@ -199,8 +197,9 @@
   </div>
 
   <script>
-    const VERSION = "d1";
-    const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
+    // Set version using document.lastModified so it changes with each commit.
+    document.getElementById("versionInfo").textContent = "Version: " + document.lastModified;
+
 
     // 1) DETECT if we're in a "test" subfolder by checking the URL path
     const isTest = window.location.pathname.includes("/test/");
