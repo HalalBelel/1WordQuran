@@ -210,7 +210,7 @@
 
   <script>
     // Author can edit this text for updates:
-    const AUTHOR_UPDATE = "Added surah name search and dropdown as suggested by A and M. Also thanks to RS, may Allah bless them all";
+    const AUTHOR_UPDATE = "Added pre-words as suggested by RS and M, may Allah bless them all";
 
     // Define remoteBaseUrl
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
@@ -452,6 +452,7 @@
       };
     }
 
+    // ONLY CHANGE: if screen is landscape, show 3 words (prev, current, next). Otherwise, show 1 word.
     function updateDisplay() {
       let currentTimeMs = audioPlayer.currentTime * 1000;
       let newIndex = -1;
@@ -464,9 +465,45 @@
       }
       if (newIndex !== lastDisplayedIndex && newIndex >= 0) {
         lastDisplayedIndex = newIndex;
+        // Get the current word
         const word = ayahWords[newIndex];
-        arabicText.innerHTML = word.c;
-        englishText.innerHTML = word.e;
+
+        // If screen is wide (landscape), show 3 words. Otherwise, just show the current word.
+        if (window.innerWidth > window.innerHeight) {
+          // We'll pick the previous word if it exists
+          const prevWord = newIndex > 0 ? ayahWords[newIndex - 1] : null;
+          // We'll pick the next word if it exists
+          const nextWord = newIndex < ayahWords.length - 1 ? ayahWords[newIndex + 1] : null;
+
+          // Arabic 3-word display
+          let arabicHTML = "";
+          if (prevWord) {
+            arabicHTML += `<span style="color:#999;">${prevWord.c}</span> `;
+          }
+          arabicHTML += `<span style="color:#000;font-weight:bold;">${word.c}</span> `;
+          if (nextWord) {
+            arabicHTML += `<span style="color:#999;">${nextWord.c}</span>`;
+          }
+          arabicText.innerHTML = arabicHTML;
+
+          // English 3-word display
+          let englishHTML = "";
+          if (prevWord) {
+            englishHTML += `<span style="color:#999;">${prevWord.e}</span> `;
+          }
+          englishHTML += `<span style="color:#000;font-weight:bold;">${word.e}</span> `;
+          if (nextWord) {
+            englishHTML += `<span style="color:#999;">${nextWord.e}</span>`;
+          }
+          englishText.innerHTML = englishHTML;
+
+        } else {
+          // Old behavior: single word
+          arabicText.innerHTML = word.c;
+          englishText.innerHTML = word.e;
+        }
+
+        // Update the index display as usual
         let surahStr = ("000" + surah).slice(-3);
         let ayahStr = ("000" + currentAyah).slice(-3);
         let wordIndexStr = ("000" + (newIndex + 1)).slice(-3);
