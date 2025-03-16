@@ -57,7 +57,6 @@
       flex-direction: column;
       align-items: flex-start;
     }
-    /* Style for input, button, and select elements */
     input, button, select {
       font-size: 1.2rem;
       padding: 0.5em;
@@ -131,7 +130,7 @@
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      top: calc(20vh + 70px);  /* 20vh for Arabic container + 10px gap */
+      top: calc(20vh + 70px);
       bottom: var(--control-height);
       overflow-y: auto;
       text-align: center;
@@ -139,7 +138,7 @@
       white-space: normal;
     }
     .english {
-      font-size: 30px; /* Hardcoded English font size */
+      font-size: 30px;
       line-height: 1;
     }
     /* For narrow screens, stack form fields vertically */
@@ -188,6 +187,7 @@
       </div>
     </div>
   </div>
+
   <script>
     // Define remoteBaseUrl
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
@@ -237,11 +237,10 @@
     window.addEventListener('orientationchange', setAppHeight);
     setAppHeight();
 
-    // Auto-populate from URL if present
+    // URL parameters
     const urlParams = new URLSearchParams(window.location.search);
-    if(urlParams.has('surah')) {
-      surahInput.value = urlParams.get('surah');
-    }
+    const urlSurah = urlParams.get('surah') || "";
+    const urlAyah = urlParams.get('ayah') || "";
 
     // Update URL with current surah & ayah
     function updateURL() {
@@ -276,6 +275,16 @@
       .then(json => {
         surahNames = json;
         populateSurahDatalist(surahNames);
+
+        // After loading, if we have a surah param, attempt to auto-fill
+        if(urlSurah) {
+          surahInput.value = urlSurah;
+          autoFillSurahFromInput(); // same logic as blur
+          // If we also have an ayah param, set it in the select
+          if(urlAyah) {
+            ayahSelect.value = urlAyah; 
+          }
+        }
       })
       .catch(err => console.error("Error loading surah names:", err));
 
@@ -307,26 +316,37 @@
     });
 
     // On blur, if user hasn't explicitly chosen from dropdown, pick the first filtered item
-    surahInput.addEventListener("blur", function() {
-      // If user typed something, but hasn't explicitly chosen an option, pick the first
-      if(surahInput.value.trim() !== "") {
-        // Check if surahInput.value is in the filtered list
-        const exactMatch = filteredSurahs.find(item => 
-          (item["Surah Number"] + ": " + item["Surah Name"]).toLowerCase() === surahInput.value.toLowerCase()
-        );
-        if(!exactMatch && filteredSurahs.length > 0) {
-          // If there's no exact match, auto-fill with the first filtered item
-          const item = filteredSurahs[0];
-          surahInput.value = item["Surah Number"] + ": " + item["Surah Name"];
-          populateAyahSelect(item["Surah Verses"]);
-        } else if(exactMatch) {
-          // If there's an exact match, ensure the ayah dropdown is updated
-          populateAyahSelect(exactMatch["Surah Verses"]);
+    surahInput.addEventListener("blur", autoFillSurahFromInput);
+
+    function autoFillSurahFromInput() {
+      if(surahInput.value.trim() === "") return;
+      const exactMatch = filteredSurahs.find(item => 
+        (item["Surah Number"] + ": " + item["Surah Name"]).toLowerCase() === surahInput.value.toLowerCase()
+      );
+      if(!exactMatch && filteredSurahs.length > 0) {
+        // If there's no exact match, auto-fill with the first filtered item
+        const item = filteredSurahs[0];
+        surahInput.value = item["Surah Number"] + ": " + item["Surah Name"];
+        populateAyahSelect(item["Surah Verses"]);
+      } else if(exactMatch) {
+        // If there's an exact match, ensure the ayah dropdown is updated
+        populateAyahSelect(exactMatch["Surah Verses"]);
+      } else {
+        // Possibly the user typed a valid surah number with no prior 'input' event,
+        // so let's see if there's a surah that exactly matches that number before the colon
+        const val = surahInput.value.trim();
+        const parts = val.split(":");
+        if(parts.length >= 1) {
+          const sNum = parts[0].trim();
+          const directMatch = surahNames.find(item => String(item["Surah Number"]) === sNum);
+          if(directMatch) {
+            surahInput.value = directMatch["Surah Number"] + ": " + directMatch["Surah Name"];
+            populateAyahSelect(directMatch["Surah Verses"]);
+          }
         }
       }
-    });
+    }
 
-    // Populate ayah select
     function populateAyahSelect(maxVerse) {
       ayahSelect.innerHTML = "";
       for(let i = 1; i <= maxVerse; i++) {
@@ -344,7 +364,6 @@
       const val = surahInput.value.trim();
       const parts = val.split(":");
       if(parts.length < 2) {
-        // If user typed something invalid (no colon or no match), don't let them play
         alert("Please select a valid surah from the list.");
         return;
       }
@@ -362,7 +381,6 @@
       });
     });
 
-    // Load surah JSON
     async function loadSurahData(surah) {
       try {
         const response = await fetch(getJsonPath(surah));
@@ -372,7 +390,6 @@
       }
     }
 
-    // Play a given ayah
     function playAyah(ayah) {
       currentAyah = ayah;
       updateURL();
@@ -409,7 +426,6 @@
       };
     }
 
-    // Continuously update the displayed text
     function updateDisplay() {
       let currentTimeMs = audioPlayer.currentTime * 1000;
       let newIndex = -1;
