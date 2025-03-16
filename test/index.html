@@ -38,7 +38,6 @@
       margin-top: 10px;
       height: calc(var(--app-height) - 20px);
       overflow-y: auto;
-      position: relative;
     }
     #versionInfo {
       font-size: 1rem;
@@ -51,7 +50,7 @@
       align-items: center;
       justify-content: center;
       gap: 1em;
-      padding-bottom: 120px; /* leave space for update textbox */
+      padding-bottom: 110px; /* Leave space for the author update textbox */
     }
     form label {
       font-size: 1.2rem;
@@ -64,21 +63,21 @@
       padding: 0.5em;
       margin-top: 0.3em;
     }
-    /* Update comment textbox for the author */
+    /* Author update textbox, read-only */
     #updateComment {
       position: absolute;
       bottom: 0;
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      height: 80px;
+      height: 100px;
+      resize: vertical;
+      overflow-y: auto;
+      font-size: 1rem;
       padding: 0.5em;
       box-sizing: border-box;
       border: 1px solid #ccc;
-      overflow-y: auto;
       background: #fff;
-      font-size: 1rem;
-      text-align: left;
     }
     /* Player Section */
     #playerSection {
@@ -148,7 +147,7 @@
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      top: calc(20vh + 70px);
+      top: calc(20vh + 70px);  /* 20vh for Arabic container + 10px gap */
       bottom: var(--control-height);
       overflow-y: auto;
       text-align: center;
@@ -168,13 +167,9 @@
   </style>
 </head>
 <body>
-  <!-- 
-    AUTHOR UPDATE:
-    Change the text below to update your comments. This will appear on the start screen.
-    The commit timestamp will be appended automatically.
-  -->
+  <!-- AUTHOR UPDATE: Edit this text to update your comments -->
   <script>
-    const AUTHOR_UPDATE = "Latest update: Improved surah autocomplete and ayah selection functionality.";
+    const AUTHOR_UPDATE = "Latest update: Improved surah autocomplete and ayah selection.";
   </script>
   <div id="container">
     <!-- Start Screen -->
@@ -184,19 +179,19 @@
       <form id="playerForm">
         <label>
           Surah:
-          <!-- Use a text input with a datalist for autocomplete -->
+          <!-- Text input with datalist for surah autocomplete -->
           <input type="text" id="surahInput" list="surahList" required>
           <datalist id="surahList"></datalist>
         </label>
         <label>
           Ayah:
-          <!-- Use a select element for ayah numbers -->
+          <!-- Select element for ayah numbers -->
           <select id="ayahSelect" required></select>
         </label>
         <button type="submit">Play</button>
       </form>
-      <!-- Update comment textbox (read-only) for the author -->
-      <div id="updateComment"></div>
+      <!-- Author update textbox (read-only) -->
+      <textarea id="updateComment" readonly></textarea>
     </div>
     <!-- Player Section -->
     <div id="playerSection">
@@ -205,7 +200,7 @@
         <audio id="audioPlayer" controls></audio>
         <div id="indexDisplay"></div>
       </div>
-      <!-- Fixed Arabic Container at 20vh from top, height 20vh -->
+      <!-- Fixed Arabic Container -->
       <div id="fixedArabic">
         <span id="arabicText" class="arabic"></span>
       </div>
@@ -215,18 +210,17 @@
       </div>
     </div>
   </div>
-
   <script>
     // Define remoteBaseUrl (global)
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
 
-    // Set version using document.lastModified in Australian format.
+    // Set version info using document.lastModified in Australian format.
     const modifiedDate = new Date(document.lastModified);
     const versionText = "Version: " + modifiedDate.toLocaleDateString("en-AU") + " " + modifiedDate.toLocaleTimeString("en-AU");
     document.getElementById("versionInfo").textContent = versionText;
 
-    // Append AUTHOR_UPDATE text plus a line break and commit timestamp to the updateComment box.
-    document.getElementById("updateComment").textContent = AUTHOR_UPDATE + "\n" + versionText;
+    // Append the AUTHOR_UPDATE text (which you can edit at the top) and the commit timestamp to the updateComment box.
+    document.getElementById("updateComment").value = AUTHOR_UPDATE + "\n" + versionText;
 
     // Detect if we're in a "test" subfolder.
     const isTest = window.location.pathname.includes("/test/");
@@ -314,7 +308,7 @@
         // If URL parameter exists, auto-fill surah input based on it.
         if(urlSurah) {
           autoFillSurahFromInput();
-          // If an ayah parameter also exists, set the ayah dropdown value.
+          // If an ayah parameter exists, set the ayah dropdown value.
           if(urlAyah) {
             ayahSelect.value = urlAyah;
           }
@@ -326,7 +320,7 @@
     function populateSurahDatalist(names) {
       names.forEach(item => {
         const option = document.createElement("option");
-        // Use colon as delimiter, e.g. "20: Taha (Ta-Ha)"
+        // Use colon as delimiter, e.g. "20: Al-Fatihah (The Opener)"
         option.value = item["Surah Number"] + ": " + item["Surah Name"];
         surahList.appendChild(option);
       });
@@ -347,7 +341,7 @@
       });
     });
 
-    // On blur, if user hasn't explicitly chosen, pick the first filtered item.
+    // On blur, if the user hasn't explicitly chosen, auto-fill with the first filtered item.
     surahInput.addEventListener("blur", autoFillSurahFromInput);
 
     function autoFillSurahFromInput() {
@@ -377,7 +371,7 @@
       }
     }
 
-    // On form submit, parse surah number from input.
+    // On form submit, parse surah number from the input.
     document.getElementById("playerForm").addEventListener("submit", function(e) {
       e.preventDefault();
       const val = surahInput.value.trim();
@@ -447,7 +441,7 @@
       };
     }
 
-    // Update display continuously.
+    // Continuously update the displayed text.
     function updateDisplay() {
       let currentTimeMs = audioPlayer.currentTime * 1000;
       let newIndex = -1;
