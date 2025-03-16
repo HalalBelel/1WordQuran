@@ -57,13 +57,12 @@
       flex-direction: column;
       align-items: flex-start;
     }
-    /* Style the input that uses a datalist */
     input, button, select {
       font-size: 1.2rem;
       padding: 0.5em;
       margin-top: 0.3em;
     }
-    /* We'll use a datalist for surah selection */
+    /* Use datalist for surah autocomplete */
     /* Player Section */
     #playerSection {
       display: none;
@@ -115,7 +114,7 @@
     }
     .arabic {
       font-size: 60px;  /* Hardcoded Arabic font size */
-      line-height: 1;   /* Let the text vertically center within the container as needed */
+      line-height: 1;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -160,7 +159,7 @@
       <form id="playerForm">
         <label>
           Surah:
-          <!-- Using an input with a datalist for surah selection -->
+          <!-- Use a text input with a datalist for autocomplete -->
           <input type="text" id="surahInput" list="surahList" required>
           <datalist id="surahList"></datalist>
         </label>
@@ -172,7 +171,6 @@
         <button type="submit">Play</button>
       </form>
     </div>
-
     <!-- Player Section -->
     <div id="playerSection">
       <!-- Fixed Control Bar at Bottom -->
@@ -190,9 +188,8 @@
       </div>
     </div>
   </div>
-
   <script>
-    // Define remoteBaseUrl at the very top.
+    // Define remoteBaseUrl (must be declared before functions that use it)
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
 
     // Set version using document.lastModified in Australian format.
@@ -207,7 +204,7 @@
     function getJsonPath(surah) {
       return isTest ? `../json/${surah}.json` : `json/${surah}.json`;
     }
-    // Similarly, for surahnames.json:
+    // Build path for surahnames.json.
     function getSurahNamesPath() {
       return isTest ? `../json/surahnames.json` : `json/surahnames.json`;
     }
@@ -224,13 +221,12 @@
     const englishText = document.getElementById("englishText");
     const indexDisplay = document.getElementById("indexDisplay");
 
-    // For surah selection
+    // For surah selection and ayah selection:
     const surahInput = document.getElementById("surahInput");
     const surahList = document.getElementById("surahList");
-    // For ayah selection
     const ayahSelect = document.getElementById("ayahSelect");
 
-    // Update --app-height dynamically on resize/orientation change.
+    // Update --app-height dynamically to handle rotation/resizing.
     function setAppHeight() {
       document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
     }
@@ -244,17 +240,16 @@
       surahInput.value = urlParams.get('surah');
     }
     if(urlParams.has('ayah')) {
-      // We'll set ayahSelect later after surah is determined.
-      // Optionally, store it in a variable.
+      // We'll update ayahSelect later after surah is determined.
     }
 
-    // Update URL with current surah and ayah.
+    // Update URL with current surah and ayah for bookmarking.
     function updateURL() {
       const newUrl = `${window.location.pathname}?surah=${surah}&ayah=${currentAyah}`;
       history.replaceState(null, '', newUrl);
     }
 
-    // Request wake lock.
+    // Request wake lock to prevent mobile idling.
     let wakeLock = null;
     async function requestWakeLock() {
       if ('wakeLock' in navigator) {
@@ -275,7 +270,7 @@
       }
     });
 
-    // Load surah names for the dropdown.
+    // Load surah names from surahnames.json.
     fetch(getSurahNamesPath())
       .then(response => response.json())
       .then(json => {
@@ -284,7 +279,9 @@
       })
       .catch(err => console.error("Error loading surah names:", err));
 
+    // Populate the datalist for surah selection.
     function populateSurahDatalist(names) {
+      // Initially populate with all options.
       names.forEach(item => {
         const option = document.createElement("option");
         option.value = item["Surah Number"];
@@ -293,19 +290,30 @@
       });
     }
 
-    // When the surah input changes, update the ayah dropdown.
+    // When the surah input changes, filter the datalist and update the ayah dropdown.
     surahInput.addEventListener("input", function() {
-      // Look for a surah that matches the input (by number or name).
       const inputVal = surahInput.value;
-      const match = surahNames.find(item => 
-        String(item["Surah Number"]) === inputVal ||
+      // Clear existing options.
+      surahList.innerHTML = "";
+      // Filter surah names for matches (by number or part of name).
+      const filtered = surahNames.filter(item =>
+        String(item["Surah Number"]).startsWith(inputVal) ||
         item["Surah Name"].toLowerCase().includes(inputVal.toLowerCase())
       );
-      if(match) {
-        populateAyahSelect(match["Surah Verses"]);
+      filtered.forEach(item => {
+        const option = document.createElement("option");
+        option.value = item["Surah Number"];
+        option.text = item["Surah Name"];
+        surahList.appendChild(option);
+      });
+      // If there's an exact match by surah number, update the ayah dropdown.
+      const exactMatch = surahNames.find(item => String(item["Surah Number"]) === inputVal);
+      if(exactMatch) {
+        populateAyahSelect(exactMatch["Surah Verses"]);
       }
     });
 
+    // Populate the ayah dropdown from 1 to maxVerse.
     function populateAyahSelect(maxVerse) {
       ayahSelect.innerHTML = "";
       for(let i = 1; i <= maxVerse; i++) {
@@ -339,6 +347,7 @@
       }
     }
 
+    // Play a given ayah.
     function playAyah(ayah) {
       currentAyah = ayah;
       updateURL();
@@ -359,7 +368,7 @@
         requestWakeLock();
         updateDisplay();
       };
-      // Pre-buffer next 3 ayahs if available
+      // Pre-buffer next 3 ayahs if available.
       for (let next = ayah + 1; next <= ayah + 3; next++) {
         if (data[String(next)]) {
           let nextAyahStr = ("000" + next).slice(-3);
@@ -375,6 +384,7 @@
       };
     }
 
+    // Update display continuously.
     function updateDisplay() {
       let currentTimeMs = audioPlayer.currentTime * 1000;
       let newIndex = -1;
