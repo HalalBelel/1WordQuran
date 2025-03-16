@@ -147,7 +147,7 @@
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      top: calc(20vh + 70px);  /* 20vh for Arabic container + 10px gap */
+      top: calc(20vh + 70px);
       bottom: var(--control-height);
       overflow-y: auto;
       text-align: center;
@@ -155,7 +155,7 @@
       white-space: normal;
     }
     .english {
-      font-size: 30px; /* Hardcoded English font size */
+      font-size: 30px;
       line-height: 1;
     }
     /* For narrow screens, stack form fields vertically */
@@ -179,13 +179,13 @@
       <form id="playerForm">
         <label>
           Surah:
-          <!-- Text input with datalist for surah autocomplete -->
+          <!-- Use a text input with a datalist for autocomplete -->
           <input type="text" id="surahInput" list="surahList" required>
           <datalist id="surahList"></datalist>
         </label>
         <label>
           Ayah:
-          <!-- Select element for ayah numbers -->
+          <!-- Use a select element for ayah numbers -->
           <select id="ayahSelect" required></select>
         </label>
         <button type="submit">Play</button>
@@ -219,7 +219,7 @@
     const versionText = "Version: " + modifiedDate.toLocaleDateString("en-AU") + " " + modifiedDate.toLocaleTimeString("en-AU");
     document.getElementById("versionInfo").textContent = versionText;
 
-    // Append the AUTHOR_UPDATE text (which you can edit at the top) and the commit timestamp to the updateComment box.
+    // Append the AUTHOR_UPDATE text and commit timestamp to the updateComment box.
     document.getElementById("updateComment").value = AUTHOR_UPDATE + "\n" + versionText;
 
     // Detect if we're in a "test" subfolder.
@@ -262,7 +262,7 @@
     window.addEventListener('orientationchange', setAppHeight);
     setAppHeight();
 
-    // Get URL parameters.
+    // Get URL parameters for surah and ayah.
     const urlParams = new URLSearchParams(window.location.search);
     const urlSurah = urlParams.get('surah') || "";
     const urlAyah = urlParams.get('ayah') || "";
@@ -347,10 +347,16 @@
     function autoFillSurahFromInput() {
       if(surahInput.value.trim() === "") return;
       const inputVal = surahInput.value.toLowerCase().trim();
-      let match = filteredSurahs.find(item => {
-        const fullText = item["Surah Number"] + ": " + item["Surah Name"];
-        return fullText.toLowerCase() === inputVal;
-      });
+      // If the input doesn't contain a colon, do a direct lookup in surahNames.
+      let match;
+      if(inputVal.indexOf(":") === -1) {
+        match = surahNames.find(item => String(item["Surah Number"]) === inputVal);
+      } else {
+        match = filteredSurahs.find(item => {
+          const fullText = item["Surah Number"] + ": " + item["Surah Name"];
+          return fullText.toLowerCase() === inputVal;
+        });
+      }
       if(!match && filteredSurahs.length > 0) {
         match = filteredSurahs[0];
         surahInput.value = match["Surah Number"] + ": " + match["Surah Name"];
