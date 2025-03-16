@@ -57,6 +57,7 @@
       flex-direction: column;
       align-items: flex-start;
     }
+    /* Style for input, button, and select elements */
     input, button, select {
       font-size: 1.2rem;
       padding: 0.5em;
@@ -189,10 +190,10 @@
     </div>
   </div>
   <script>
-    // Define remoteBaseUrl (must be declared before functions that use it)
+    // Define remoteBaseUrl (global)
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
 
-    // Set version using document.lastModified in Australian format.
+    // Set version info using document.lastModified in Australian format.
     const modifiedDate = new Date(document.lastModified);
     const versionText = "Version: " + modifiedDate.toLocaleDateString("en-AU") + " " + modifiedDate.toLocaleTimeString("en-AU");
     document.getElementById("versionInfo").textContent = versionText;
@@ -221,12 +222,12 @@
     const englishText = document.getElementById("englishText");
     const indexDisplay = document.getElementById("indexDisplay");
 
-    // For surah selection and ayah selection:
+    // For surah and ayah selection.
     const surahInput = document.getElementById("surahInput");
     const surahList = document.getElementById("surahList");
     const ayahSelect = document.getElementById("ayahSelect");
 
-    // Update --app-height dynamically to handle rotation/resizing.
+    // Update --app-height dynamically on resize/orientation change.
     function setAppHeight() {
       document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
     }
@@ -281,35 +282,25 @@
 
     // Populate the datalist for surah selection.
     function populateSurahDatalist(names) {
-      // Initially populate with all options.
       names.forEach(item => {
         const option = document.createElement("option");
-        option.value = item["Surah Number"];
-        option.text = item["Surah Name"];
+        // Use colon as delimiter.
+        option.value = item["Surah Number"] + ": " + item["Surah Name"];
         surahList.appendChild(option);
       });
     }
 
-    // When the surah input changes, filter the datalist and update the ayah dropdown.
-    surahInput.addEventListener("input", function() {
+    // When the surah input loses focus, auto-fill if there's a matching surah.
+    surahInput.addEventListener("blur", function() {
       const inputVal = surahInput.value;
-      // Clear existing options.
-      surahList.innerHTML = "";
-      // Filter surah names for matches (by number or part of name).
-      const filtered = surahNames.filter(item =>
-        String(item["Surah Number"]).startsWith(inputVal) ||
-        item["Surah Name"].toLowerCase().includes(inputVal.toLowerCase())
-      );
-      filtered.forEach(item => {
-        const option = document.createElement("option");
-        option.value = item["Surah Number"];
-        option.text = item["Surah Name"];
-        surahList.appendChild(option);
-      });
-      // If there's an exact match by surah number, update the ayah dropdown.
-      const exactMatch = surahNames.find(item => String(item["Surah Number"]) === inputVal);
-      if(exactMatch) {
-        populateAyahSelect(exactMatch["Surah Verses"]);
+      const parts = inputVal.split(":");
+      if(parts.length > 0) {
+        const num = parts[0].trim();
+        const match = surahNames.find(item => String(item["Surah Number"]) === num);
+        if(match) {
+          surahInput.value = match["Surah Number"] + ": " + match["Surah Name"];
+          populateAyahSelect(match["Surah Verses"]);
+        }
       }
     });
 
@@ -327,7 +318,9 @@
     // Form submission: read surah from surahInput and ayah from ayahSelect.
     document.getElementById("playerForm").addEventListener("submit", function(e) {
       e.preventDefault();
-      surah = parseInt(surahInput.value);
+      // Parse surah number from input by splitting on colon.
+      const parts = surahInput.value.split(":");
+      surah = parseInt(parts[0].trim());
       currentAyah = parseInt(ayahSelect.value);
       updateURL();
       document.getElementById("startScreen").style.display = "none";
