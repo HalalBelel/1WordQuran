@@ -62,14 +62,14 @@
       padding: 0.5em;
       margin-top: 0.3em;
     }
-    /* Author updates box as a normal block at the bottom of the start screen */
+    /* Normal block for author updates at the bottom of the start screen */
     #updatesBox {
       margin-top: 1em;
       width: 90%;
       max-width: 800px;
       margin-left: auto;
       margin-right: auto;
-      height: 100px; /* Adjust as needed */
+      height: 100px;
       resize: vertical;
       overflow-y: auto;
       font-size: 1rem;
@@ -208,7 +208,7 @@
 
   <script>
     // AUTHOR UPDATE: Edit this text for your update notes.
-    const AUTHOR_UPDATE = "Added pre- and post-word display in landscape mode with rollover across ayahs; current word is always centered.";
+    const AUTHOR_UPDATE = "Added pre- and post-word display with rollover across ayahs so that three Arabic words appear as a continuous sentence with the current word centered.";
 
     // Define remoteBaseUrl
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
@@ -398,7 +398,6 @@
       document.getElementById("startScreen").style.display = "none";
       document.getElementById("playerSection").style.display = "block";
       loadSurahData(surah).then(() => {
-        // Load previous ayah's last word for rollover
         loadPrevAyah(currentAyah);
         playAyah(currentAyah);
       });
@@ -416,7 +415,7 @@
     function playAyah(ayah) {
       currentAyah = ayah;
       updateURL();
-      // Load previous ayah's last word for rollover whenever a new ayah starts
+      // Load previous ayah's last word for rollover when starting a new ayah
       loadPrevAyah(currentAyah);
       const surahStr = ("000" + surah).slice(-3);
       const ayahStr = ("000" + ayah).slice(-3);
@@ -450,10 +449,11 @@
       };
     }
 
-    // ONLY CHANGE: In landscape mode, show 3 words (previous, current, next) for both Arabic and English.
-    // For Arabic (RTL), the current word must always be centered.
+    // NEW: In landscape mode, show a natural Arabic sentence consisting of three words:
+    // the word immediately before the current word, the current word (in bold black), and the word immediately after.
     // If the current word is the first of the ayah, use the last word from the previous ayah (if available).
     // If the current word is the last, use the first word from the next ayah (if available).
+    // For English, only display the current word's translation centered underneath.
     function updateDisplay() {
       let currentTimeMs = audioPlayer.currentTime * 1000;
       let newIndex = -1;
@@ -468,32 +468,37 @@
         lastDisplayedIndex = newIndex;
         const currentWord = ayahWords[newIndex];
   
-        if (window.innerWidth > window.innerHeight) { // Landscape mode: show 3 words for each language.
-          // For previous word: if current word is first in ayah, use last word from previous ayah if available.
-          let prevWord = newIndex > 0 ? ayahWords[newIndex - 1] : (currentAyah > 1 ? prevAyahLastWord : null);
-          // For next word: if current word is last in ayah, use first word from next ayah if available.
-          let nextWord = newIndex < ayahWords.length - 1 ? ayahWords[newIndex + 1] : (data && data[String(currentAyah + 1)] && data[String(currentAyah + 1)]["w"] && data[String(currentAyah + 1)]["w"].length > 0 ? data[String(currentAyah + 1)]["w"][0] : null);
+        if (window.innerWidth > window.innerHeight) { // Landscape mode
+          // Determine previous word:
+          let prevWord = null;
+          if (newIndex > 0) {
+            prevWord = ayahWords[newIndex - 1];
+          } else if (currentAyah > 1 && prevAyahLastWord) {
+            prevWord = prevAyahLastWord;
+          }
+          // Determine next word:
+          let nextWord = null;
+          if (newIndex < ayahWords.length - 1) {
+            nextWord = ayahWords[newIndex + 1];
+          } else if (data && data[String(currentAyah + 1)] && data[String(currentAyah + 1)]["w"] && data[String(currentAyah + 1)]["w"].length > 0) {
+            nextWord = data[String(currentAyah + 1)]["w"][0];
+          }
+          // Build Arabic sentence as a continuous text with natural spacing.
+          // For a natural Arabic sentence in RTL, join the words in reverse order.
+          // That is, display: next word (if any), then current word, then previous word.
+          let arabicSentence = "";
+          arabicSentence += nextWord ? `<span style="color:#999;">${nextWord.c}</span> ` : "";
+          arabicSentence += `<span style="color:#000;font-weight:bold;">${currentWord.c}</span>`;
+          arabicSentence += prevWord ? ` <span style="color:#999;">${prevWord.c}</span>` : "";
+          // Wrap in a div with RTL direction and centered text.
+          arabicText.innerHTML = `<div style="direction: rtl; text-align: center;">${arabicSentence}</div>`;
   
-          // Build Arabic HTML using a flex container with three equally sized columns.
-          let arabicHTML = `<div style="display:flex; width:100%;">`;
-          // For Arabic (RTL): left column gets the next word, center the current, right column gets the previous.
-          arabicHTML += `<div style="width:33%; text-align:left; color:#999;">${nextWord ? nextWord.c : ""}</div>`;
-          arabicHTML += `<div style="width:34%; text-align:center; color:#000; font-weight:bold;">${currentWord.c}</div>`;
-          arabicHTML += `<div style="width:33%; text-align:right; color:#999;">${prevWord ? prevWord.c : ""}</div>`;
-          arabicHTML += `</div>`;
-          arabicText.innerHTML = arabicHTML;
-  
-          // Build English HTML in the same order so translations line up.
-          let englishHTML = `<div style="display:flex; width:100%;">`;
-          englishHTML += `<div style="width:33%; text-align:left; color:#999;">${nextWord ? nextWord.e : ""}</div>`;
-          englishHTML += `<div style="width:34%; text-align:center; color:#000; font-weight:bold;">${currentWord.e}</div>`;
-          englishHTML += `<div style="width:33%; text-align:right; color:#999;">${prevWord ? prevWord.e : ""}</div>`;
-          englishHTML += `</div>`;
-          englishText.innerHTML = englishHTML;
+          // For English, display only the current word's translation, centered.
+          englishText.innerHTML = `<div style="text-align: center;">${currentWord.e}</div>`;
         } else {
           // Portrait: show only the current word.
           arabicText.innerHTML = currentWord.c;
-          englishText.innerHTML = currentWord.e;
+          englishText.innerHTML = `<div style="text-align: center;">${currentWord.e}</div>`;
         }
   
         let surahStr = ("000" + surah).slice(-3);
