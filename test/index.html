@@ -63,14 +63,14 @@
       padding: 0.5em;
       margin-top: 0.3em;
     }
-    /* Read-only author updates box at the bottom */
+    /* Normal block for author notes, so it won't overlap. */
     #updatesBox {
-      position: absolute;
-      bottom: 0;
-      left: 50%;
-      transform: translateX(-50%);
+      margin-top: 1em;
       width: 90%;
-      height: 100px;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+      height: 100px; /* You can adjust or remove this if you want auto-height. */
       resize: vertical;
       overflow-y: auto;
       font-size: 1rem;
