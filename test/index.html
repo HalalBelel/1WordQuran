@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <!-- Ensure proper scaling on mobile devices -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quran Player on GitHub Pages</title>
+  <title>1WordQuran by bnym.contactus@gmail.com</title>
   <style>
     :root {
       /* Control bar fixed at bottom: height 60px */
@@ -50,6 +50,8 @@
       align-items: center;
       justify-content: center;
       gap: 1em;
+      /* Give some bottom padding so the form doesn't get hidden behind the comments box */
+      padding-bottom: 110px;
     }
     form label {
       font-size: 1.2rem;
@@ -61,6 +63,21 @@
       font-size: 1.2rem;
       padding: 0.5em;
       margin-top: 0.3em;
+    }
+    /* Comments textbox, absolutely positioned at the bottom of the start screen */
+    #updateComments {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      height: 100px;
+      resize: vertical;
+      overflow-y: auto;
+      font-size: 1rem;
+      padding: 0.5em;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
     }
     /* Player Section */
     #playerSection {
@@ -130,7 +147,7 @@
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
-      top: calc(20vh + 70px);
+      top: calc(20vh + 70px);  /* 20vh for Arabic container + 10px gap */
       bottom: var(--control-height);
       overflow-y: auto;
       text-align: center;
@@ -138,7 +155,7 @@
       white-space: normal;
     }
     .english {
-      font-size: 30px;
+      font-size: 30px; /* Hardcoded English font size */
       line-height: 1;
     }
     /* For narrow screens, stack form fields vertically */
@@ -153,7 +170,7 @@
   <div id="container">
     <!-- Start Screen -->
     <div id="startScreen">
-      <h1>Quran Player</h1>
+      <h1>1WordQuran by bnym.contactus@gmail.com</h1>
       <div id="versionInfo"></div>
       <form id="playerForm">
         <label>
@@ -169,6 +186,8 @@
         </label>
         <button type="submit">Play</button>
       </form>
+      <!-- Comments textbox at bottom -->
+      <textarea id="updateComments" placeholder="Comments on latest update..."></textarea>
     </div>
     <!-- Player Section -->
     <div id="playerSection">
@@ -187,24 +206,23 @@
       </div>
     </div>
   </div>
-
   <script>
-    // Define remoteBaseUrl
+    // Define remoteBaseUrl (global)
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
 
-    // Set version using document.lastModified in Australian format
+    // Set version using document.lastModified in Australian format.
     const modifiedDate = new Date(document.lastModified);
     const versionText = "Version: " + modifiedDate.toLocaleDateString("en-AU") + " " + modifiedDate.toLocaleTimeString("en-AU");
     document.getElementById("versionInfo").textContent = versionText;
 
-    // Detect if we're in a "test" subfolder
+    // Detect if we're in a "test" subfolder.
     const isTest = window.location.pathname.includes("/test/");
 
-    // Build the JSON path accordingly
+    // Build the JSON path accordingly.
     function getJsonPath(surah) {
       return isTest ? `../json/${surah}.json` : `json/${surah}.json`;
     }
-    // Build path for surahnames.json
+    // Build path for surahnames.json.
     function getSurahNamesPath() {
       return isTest ? `../json/surahnames.json` : `json/surahnames.json`;
     }
@@ -226,10 +244,10 @@
     const surahList = document.getElementById("surahList");
     const ayahSelect = document.getElementById("ayahSelect");
 
-    // Keep track of filtered surahs in case the user clicks away
+    // Keep track of filtered surahs
     let filteredSurahs = [];
 
-    // Dynamic app height
+    // Update --app-height dynamically on resize/orientation change.
     function setAppHeight() {
       document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
     }
@@ -237,18 +255,23 @@
     window.addEventListener('orientationchange', setAppHeight);
     setAppHeight();
 
-    // URL parameters
+    // Get URL parameters for surah and ayah.
     const urlParams = new URLSearchParams(window.location.search);
     const urlSurah = urlParams.get('surah') || "";
     const urlAyah = urlParams.get('ayah') || "";
 
-    // Update URL with current surah & ayah
+    // If a surah parameter exists, prefill the surah input.
+    if(urlSurah) {
+      surahInput.value = urlSurah;
+    }
+
+    // Update URL with current surah & ayah.
     function updateURL() {
       const newUrl = `${window.location.pathname}?surah=${surah}&ayah=${currentAyah}`;
       history.replaceState(null, '', newUrl);
     }
 
-    // Wake lock to prevent mobile idling
+    // Request wake lock to prevent mobile idling.
     let wakeLock = null;
     async function requestWakeLock() {
       if ('wakeLock' in navigator) {
@@ -269,26 +292,24 @@
       }
     });
 
-    // Load surah names from surahnames.json
+    // Load surah names from surahnames.json.
     fetch(getSurahNamesPath())
       .then(response => response.json())
       .then(json => {
         surahNames = json;
         populateSurahDatalist(surahNames);
-
-        // After loading, if we have a surah param, attempt to auto-fill
+        // If URL parameter exists, auto-fill surah input based on it.
         if(urlSurah) {
-          surahInput.value = urlSurah;
-          autoFillSurahFromInput(); // same logic as blur
-          // If we also have an ayah param, set it in the select
+          autoFillSurahFromInput();
+          // If also an ayah parameter exists, set the ayah dropdown value.
           if(urlAyah) {
-            ayahSelect.value = urlAyah; 
+            ayahSelect.value = urlAyah;
           }
         }
       })
       .catch(err => console.error("Error loading surah names:", err));
 
-    // Populate the datalist for surah selection
+    // Populate the datalist for surah selection.
     function populateSurahDatalist(names) {
       names.forEach(item => {
         const option = document.createElement("option");
@@ -298,16 +319,14 @@
       });
     }
 
-    // Filter surahs as user types
+    // Filter surahs as user types.
     surahInput.addEventListener("input", function() {
       const inputVal = surahInput.value.toLowerCase().trim();
-      // Clear the existing datalist options
       surahList.innerHTML = "";
       filteredSurahs = surahNames.filter(item => {
         const fullText = item["Surah Number"] + ": " + item["Surah Name"];
         return fullText.toLowerCase().includes(inputVal);
       });
-      // Re-populate datalist with filtered results
       filteredSurahs.forEach(item => {
         const option = document.createElement("option");
         option.value = item["Surah Number"] + ": " + item["Surah Name"];
@@ -315,38 +334,28 @@
       });
     });
 
-    // On blur, if user hasn't explicitly chosen from dropdown, pick the first filtered item
+    // On blur, if user hasn't explicitly chosen from dropdown, pick the first filtered item.
     surahInput.addEventListener("blur", autoFillSurahFromInput);
 
     function autoFillSurahFromInput() {
       if(surahInput.value.trim() === "") return;
-      const exactMatch = filteredSurahs.find(item => 
-        (item["Surah Number"] + ": " + item["Surah Name"]).toLowerCase() === surahInput.value.toLowerCase()
-      );
-      if(!exactMatch && filteredSurahs.length > 0) {
-        // If there's no exact match, auto-fill with the first filtered item
-        const item = filteredSurahs[0];
-        surahInput.value = item["Surah Number"] + ": " + item["Surah Name"];
-        populateAyahSelect(item["Surah Verses"]);
-      } else if(exactMatch) {
-        // If there's an exact match, ensure the ayah dropdown is updated
-        populateAyahSelect(exactMatch["Surah Verses"]);
-      } else {
-        // Possibly the user typed a valid surah number with no prior 'input' event,
-        // so let's see if there's a surah that exactly matches that number before the colon
-        const val = surahInput.value.trim();
-        const parts = val.split(":");
-        if(parts.length >= 1) {
-          const sNum = parts[0].trim();
-          const directMatch = surahNames.find(item => String(item["Surah Number"]) === sNum);
-          if(directMatch) {
-            surahInput.value = directMatch["Surah Number"] + ": " + directMatch["Surah Name"];
-            populateAyahSelect(directMatch["Surah Verses"]);
-          }
-        }
+      const inputVal = surahInput.value.toLowerCase().trim();
+      // Look for an exact match in filteredSurahs.
+      let match = filteredSurahs.find(item => {
+        const fullText = item["Surah Number"] + ": " + item["Surah Name"];
+        return fullText.toLowerCase() === inputVal;
+      });
+      if(!match && filteredSurahs.length > 0) {
+        // If no exact match, auto-fill with the first filtered item.
+        match = filteredSurahs[0];
+        surahInput.value = match["Surah Number"] + ": " + match["Surah Name"];
+      }
+      if(match) {
+        populateAyahSelect(match["Surah Verses"]);
       }
     }
 
+    // Populate the ayah dropdown from 1 to maxVerse.
     function populateAyahSelect(maxVerse) {
       ayahSelect.innerHTML = "";
       for(let i = 1; i <= maxVerse; i++) {
@@ -357,10 +366,9 @@
       }
     }
 
-    // On form submit, parse surah number from the input
+    // On form submit, parse surah number from the input.
     document.getElementById("playerForm").addEventListener("submit", function(e) {
       e.preventDefault();
-      // Parse surah number from input by splitting on colon
       const val = surahInput.value.trim();
       const parts = val.split(":");
       if(parts.length < 2) {
@@ -381,6 +389,7 @@
       });
     });
 
+    // Load surah JSON.
     async function loadSurahData(surah) {
       try {
         const response = await fetch(getJsonPath(surah));
@@ -390,6 +399,7 @@
       }
     }
 
+    // Play a given ayah.
     function playAyah(ayah) {
       currentAyah = ayah;
       updateURL();
@@ -410,7 +420,7 @@
         requestWakeLock();
         updateDisplay();
       };
-      // Pre-buffer next 3 ayahs if available
+      // Pre-buffer next 3 ayahs if available.
       for (let next = ayah + 1; next <= ayah + 3; next++) {
         if (data[String(next)]) {
           let nextAyahStr = ("000" + next).slice(-3);
@@ -426,6 +436,7 @@
       };
     }
 
+    // Update display continuously.
     function updateDisplay() {
       let currentTimeMs = audioPlayer.currentTime * 1000;
       let newIndex = -1;
