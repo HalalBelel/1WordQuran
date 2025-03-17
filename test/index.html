@@ -116,7 +116,7 @@
       width: 90%;
       height: 20vh;
       pointer-events: none;
-      overflow: hidden; /* Ensures no vertical clipping */
+      overflow: hidden;
     }
     /* .arabic is an inline-block so we can measure spans */
     .arabic {
@@ -191,8 +191,17 @@
   </div>
 
   <script>
-    // AUTHOR UPDATE: Edit update notes here.
-    const AUTHOR_UPDATE = "Auto-scroll from left-to-right: as each word's audio starts, its right edge enters the center. The full ayah scrolls continuously.";
+    // AUTHOR UPDATE:
+    // This version uses a hardcoded table of Tajweed rules to decide when the upcoming word influences the current word.
+    // The rules considered are:
+    //  • Idgham with Ghunnah: if current word ends with a tanween/sukun and next word starts with one of [ي, ن, م, و]
+    //  • Idgham without Ghunnah: if next word starts with [ر, ل]
+    //  • Iqlab: if next word starts with [ب]
+    //  • Ikhfa: for any other Arabic letter following a word ending with tanween/sukun.
+    // When a rule applies:
+    //  - For Idgham and Iqlab, the entire upcoming word is highlighted in red.
+    //  - For Ikhfa, only its first letter is highlighted in red (the rest remain grey).
+    const AUTHOR_UPDATE = "Auto-scroll with intra-ayah blending based on real Tajweed rules: when the current word ends with tanween/sukun and the next word’s first letter meets one of the conditions (idgham, iqlab, or ikhfa), only that influenced letter (or the whole word for strong merging) is highlighted in red.";
     
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
 
@@ -215,7 +224,6 @@
     let surah = 0;
     let ayahWords = [];
     let lastDisplayedIndex = -1;
-    let prevAyahLastWord = null;
 
     const audioPlayer = document.getElementById("audioPlayer");
     const arabicText = document.getElementById("arabicText");
@@ -228,6 +236,7 @@
 
     let filteredSurahs = [];
 
+    // Set app height to fit mobile devices.
     function setAppHeight() {
       document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
     }
@@ -263,22 +272,6 @@
         await requestWakeLock();
       }
     });
-
-    // Load last word of previous ayah if available
-    function loadPrevAyah(ayah) {
-      if (ayah > 1) {
-        fetch(getJsonPath(ayah - 1))
-          .then(r => r.json())
-          .then(prevData => {
-            if (prevData && prevData["w"] && prevData["w"].length > 0) {
-              prevAyahLastWord = prevData["w"][prevData["w"].length - 1];
-            }
-          })
-          .catch(err => console.error("Error loading previous ayah:", err));
-      } else {
-        prevAyahLastWord = null;
-      }
-    }
 
     fetch(getSurahNamesPath())
       .then(r => r.json())
@@ -372,7 +365,6 @@
 
       // Wait one RAF to ensure layout is stable, then start playback.
       requestAnimationFrame(() => {
-        loadPrevAyah(currentAyah);
         loadSurahData(surah).then(() => {
           playAyah(currentAyah);
         });
@@ -391,7 +383,6 @@
     function playAyah(ayah) {
       currentAyah = ayah;
       updateURL();
-      loadPrevAyah(currentAyah);
 
       const surahStr = ("000" + surah).slice(-3);
       const ayahStr = ("000" + ayah).slice(-3);
@@ -430,43 +421,82 @@
       };
     }
 
-    // Auto-scroll the full ayah line in landscape mode so that the right edge of the current word aligns with the screen’s center when its audio starts.
+    // ---------- Tajweed blending logic ----------
+    // Check if a word ends with sukun or any tanween diacritic.
+    function endsWithSukunOrTanween(word) {
+      return /[ًٌٍْ]$/.test(word);
+    }
+    // Hardcoded Tajweed rule table:
+    const tajweedRules = {
+      idghamWithGhunnah: ["ي", "ن", "م", "و"],
+      idghamWithoutGhunnah: ["ر", "ل"],
+      iqlab: ["ب"]
+      // Any other Arabic letter (from \u0621 to \u064A) will be treated as triggering ikhfa.
+    };
+    // Determine which rule applies given the current word's ending and next word's first letter.
+    function getTajweedRule(currentWord, nextWord) {
+      if (!endsWithSukunOrTanween(currentWord)) return null;
+      if (!nextWord || nextWord.length === 0) return null;
+      const nextLetter = nextWord.charAt(0);
+      if (tajweedRules.idghamWithGhunnah.includes(nextLetter)) return "idghamWithGhunnah";
+      if (tajweedRules.idghamWithoutGhunnah.includes(nextLetter)) return "idghamWithoutGhunnah";
+      if (tajweedRules.iqlab.includes(nextLetter)) return "iqlab";
+      if (/[\u0621-\u064A]/.test(nextLetter)) return "ikhfa";
+      return null;
+    }
+    // ---------- End Tajweed blending logic ----------
+
+    // Auto-scroll in landscape mode so that the right edge of the current word aligns with the container’s center.
+    // Additionally, if the current word ends with sukun/tanween and the next word triggers a Tajweed rule,
+    // then only the influenced letter(s) of the upcoming word are highlighted in red.
     function updateDisplay() {
       const currentTimeMs = audioPlayer.currentTime * 1000;
       
-      // Find index i such that ayahWords[i].scheduledTime <= t < ayahWords[i+1].scheduledTime.
+      // Determine index i such that ayahWords[i].scheduledTime <= t < ayahWords[i+1].scheduledTime.
       let i = 0;
       for (; i < ayahWords.length - 1; i++) {
         if (currentTimeMs < ayahWords[i+1].scheduledTime) break;
       }
       
-      // Calculate fraction f between word i and word i+1.
+      // Fraction f for interpolation between word i and word i+1.
       let f = 0;
       if (i < ayahWords.length - 1) {
         f = (currentTimeMs - ayahWords[i].scheduledTime) / (ayahWords[i+1].scheduledTime - ayahWords[i].scheduledTime);
       }
       
-      // Assemble the sentence spans.
+      // Assemble sentence spans.
       let sentenceParts = [];
-      const offsetPrepend = prevAyahLastWord ? 1 : 0;
-      if (prevAyahLastWord) {
-        sentenceParts.push(`<span id="word-prepend" style="color:#999;">${prevAyahLastWord.c}</span>`);
-      }
       ayahWords.forEach((w, j) => {
-        let spanId = `word-${j + offsetPrepend}`;
+        let spanId = `word-${j}`;
         if (j === i) {
-          // Current word: render in bold black.
+          // Current word: black bold.
           sentenceParts.push(`<span id="${spanId}" style="color:#000;font-weight:bold;">${w.c}</span>`);
+        } else if (j === i + 1) {
+          // Upcoming word: check if Tajweed rule applies.
+          const rule = getTajweedRule(ayahWords[i].c, w.c);
+          if (rule) {
+            if (rule === "ikhfa") {
+              // For ikhfa, highlight only the first letter in red.
+              let firstLetter = w.c.charAt(0);
+              let rest = w.c.slice(1);
+              sentenceParts.push(`<span id="${spanId}" style="color:red;">${firstLetter}</span><span style="color:#999;">${rest}</span>`);
+            } else {
+              // For idgham and iqlab, highlight the entire upcoming word in red.
+              sentenceParts.push(`<span id="${spanId}" style="color:red;">${w.c}</span>`);
+            }
+          } else {
+            sentenceParts.push(`<span id="${spanId}" style="color:#999;">${w.c}</span>`);
+          }
         } else {
           sentenceParts.push(`<span id="${spanId}" style="color:#999;">${w.c}</span>`);
         }
       });
-      // Always append the end-of-ayah marker with id "word-end"
+      // Append the end-of-ayah marker.
       sentenceParts.push(`<span id="word-end" style="color:#999;">&#x06DD;</span>`);
       
       const sentenceHTML = sentenceParts.join(" ");
       
-      if (window.innerWidth > window.innerHeight) { // Landscape mode: auto-scroll full ayah
+      if (window.innerWidth > window.innerHeight) { // Landscape mode
         // Create a hidden container to measure positions.
         let containerWidth = arabicText.offsetWidth;
         let temp = document.createElement("div");
@@ -481,21 +511,17 @@
         temp.style.width = containerWidth + "px";
         temp.innerHTML = sentenceHTML;
         
-        // Append temp to fixedArabic so both measurement and display share the same coordinate context.
+        // Append temp to fixedArabic for consistent coordinate context.
         const fixedArabic = document.getElementById("fixedArabic");
         fixedArabic.appendChild(temp);
         
-        // Determine the effective "current" word span id.
-        const currentSpanId = `word-${i + offsetPrepend}`;
-        const nextSpanId = (i < ayahWords.length - 1) ? `word-${i+1+offsetPrepend}` : "word-end";
-        
-        const currentSpan = temp.querySelector("#" + currentSpanId);
-        const nextSpan = temp.querySelector("#" + nextSpanId);
+        // Identify the current and upcoming word elements.
+        const currentSpan = temp.querySelector("#word-" + i);
+        const nextSpan = temp.querySelector("#word-" + (i + 1));
         
         let currentRight, nextRight;
         if (currentSpan) {
           let currRect = currentSpan.getBoundingClientRect();
-          // Use right edge instead of center.
           currentRight = currRect.left + currRect.width;
         }
         if (nextSpan) {
@@ -505,7 +531,7 @@
           nextRight = currentRight;
         }
         
-        // Interpolate the effective right edge based on fraction f.
+        // Interpolate the effective right edge.
         const effectiveRight = currentRight + f * (nextRight - currentRight);
         let fixedArabicRect = fixedArabic.getBoundingClientRect();
         const containerCenter = fixedArabicRect.left + fixedArabicRect.width / 2;
@@ -515,10 +541,10 @@
         // Render the sentence with the calculated offset.
         arabicText.innerHTML = `<div style="white-space:nowrap;text-align:center;transform:translateX(${offset}px);">${sentenceHTML}</div>`;
         
-        // For English, show only the current word's translation.
+        // Display the translation of the current word.
         englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
       } else {
-        // Portrait mode: show only current word.
+        // Portrait mode: show only the current word.
         arabicText.innerHTML = ayahWords[i].c;
         englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
       }
