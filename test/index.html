@@ -430,10 +430,7 @@
       };
     }
 
-    // NEW: Auto-scroll the full ayah line from right-to-left in landscape,
-    // so that the center of the current word passes the horizontal middle at its halfway audio point,
-    // and the center of the next word passes at its halfway point.
-    // We compute a continuous interpolation based on current playback time.
+    // Auto-scroll the full ayah line in landscape mode so that the center of the current word aligns with the screen’s center.
     function updateDisplay() {
       const currentTimeMs = audioPlayer.currentTime * 1000;
       
@@ -483,7 +480,10 @@
         temp.style.textAlign = "center";
         temp.style.width = containerWidth + "px";
         temp.innerHTML = sentenceHTML;
-        document.body.appendChild(temp);
+        
+        // Append temp to fixedArabic instead of document.body.
+        const fixedArabic = document.getElementById("fixedArabic");
+        fixedArabic.appendChild(temp);
         
         // Determine the effective "current" word span id.
         const currentSpanId = `word-${i + offsetPrepend}`;
@@ -506,16 +506,16 @@
         
         // Interpolate the effective center based on fraction f.
         const effectiveCenter = currentCenter + f * (nextCenter - currentCenter);
-        // Container center:
-        let tempRect = temp.getBoundingClientRect();
-        const containerCenter = tempRect.left + tempRect.width / 2;
+        // Use fixedArabic's bounding rect for container center.
+        let fixedArabicRect = fixedArabic.getBoundingClientRect();
+        const containerCenter = fixedArabicRect.left + fixedArabicRect.width / 2;
         const offset = containerCenter - effectiveCenter;
-        document.body.removeChild(temp);
+        fixedArabic.removeChild(temp);
         
         // Render the sentence with the calculated offset.
         arabicText.innerHTML = `<div style="white-space:nowrap;text-align:center;transform:translateX(${offset}px);">${sentenceHTML}</div>`;
         
-        // For English, show only current word's translation.
+        // For English, show only the current word's translation.
         englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
       } else {
         // Portrait mode: show only current word.
