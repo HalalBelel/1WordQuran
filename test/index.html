@@ -192,8 +192,8 @@
 
   <script>
     // AUTHOR UPDATE: Edit update notes here.
-    const AUTHOR_UPDATE = "Auto-scroll from left-to-right: as each word reaches its audio half-time, its center passes the screen’s center. The full ayah scrolls continuously.";
-
+    const AUTHOR_UPDATE = "Auto-scroll from left-to-right: as each word's audio starts, its right edge enters the center. The full ayah scrolls continuously.";
+    
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
 
     const modifiedDate = new Date(document.lastModified);
@@ -430,7 +430,7 @@
       };
     }
 
-    // Auto-scroll the full ayah line in landscape mode so that the center of the current word aligns with the screen’s center.
+    // Auto-scroll the full ayah line in landscape mode so that the right edge of the current word aligns with the screen’s center when its audio starts.
     function updateDisplay() {
       const currentTimeMs = audioPlayer.currentTime * 1000;
       
@@ -481,7 +481,7 @@
         temp.style.width = containerWidth + "px";
         temp.innerHTML = sentenceHTML;
         
-        // Append temp to fixedArabic instead of document.body.
+        // Append temp to fixedArabic so both measurement and display share the same coordinate context.
         const fixedArabic = document.getElementById("fixedArabic");
         fixedArabic.appendChild(temp);
         
@@ -492,24 +492,24 @@
         const currentSpan = temp.querySelector("#" + currentSpanId);
         const nextSpan = temp.querySelector("#" + nextSpanId);
         
-        let currentCenter, nextCenter;
+        let currentRight, nextRight;
         if (currentSpan) {
           let currRect = currentSpan.getBoundingClientRect();
-          currentCenter = currRect.left + currRect.width / 2;
+          // Use right edge instead of center.
+          currentRight = currRect.left + currRect.width;
         }
         if (nextSpan) {
           let nextRect = nextSpan.getBoundingClientRect();
-          nextCenter = nextRect.left + nextRect.width / 2;
+          nextRight = nextRect.left + nextRect.width;
         } else {
-          nextCenter = currentCenter;
+          nextRight = currentRight;
         }
         
-        // Interpolate the effective center based on fraction f.
-        const effectiveCenter = currentCenter + f * (nextCenter - currentCenter);
-        // Use fixedArabic's bounding rect for container center.
+        // Interpolate the effective right edge based on fraction f.
+        const effectiveRight = currentRight + f * (nextRight - currentRight);
         let fixedArabicRect = fixedArabic.getBoundingClientRect();
         const containerCenter = fixedArabicRect.left + fixedArabicRect.width / 2;
-        const offset = containerCenter - effectiveCenter;
+        const offset = containerCenter - effectiveRight;
         fixedArabic.removeChild(temp);
         
         // Render the sentence with the calculated offset.
