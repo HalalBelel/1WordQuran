@@ -62,14 +62,14 @@
       padding: 0.5em;
       margin-top: 0.3em;
     }
-    /* Author updates box as a normal block at the bottom of the start screen */
+    /* Read-only author updates box */
     #updatesBox {
       margin-top: 1em;
       width: 90%;
       max-width: 800px;
       margin-left: auto;
       margin-right: auto;
-      height: 100px; /* Adjust as needed */
+      height: 100px;
       resize: vertical;
       overflow-y: auto;
       font-size: 1rem;
@@ -84,7 +84,7 @@
       position: relative;
       height: 100%;
     }
-    /* Control Bar fixed at bottom */
+    /* Fixed Control Bar at Bottom */
     #footerControls {
       position: fixed;
       bottom: 0;
@@ -204,7 +204,7 @@
 
   <script>
     // AUTHOR UPDATE: Edit this text for your update notes.
-    const AUTHOR_UPDATE = "Added continuous Arabic sentence with current word centered (precalculated offset) and rollover across ayahs.";
+    const AUTHOR_UPDATE = "Added continuous Arabic sentence with current word pre-centered using pre-calculated offset and proper rollover (including end-of-ayah marker '۝' when needed).";
 
     // Define remoteBaseUrl
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
@@ -445,15 +445,11 @@
     }
 
     // NEW: In landscape mode, assemble a continuous Arabic sentence with natural spacing.
-    // The logical order in the array is: [first word, second word, ...].
-    // For natural RTL rendering, we want the current word to be exactly centered.
-    // To achieve this:
-    // - We assemble the sentence in logical order: previous word, current word, next word.
-    // - Because the container has "direction: rtl", the visual order will be reversed:
-    //   the rightmost (visually) will be the last element of the HTML order.
-    // - To center the current word, we pre-calculate the offset using a hidden container
-    //   that mimics the visible container's styling.
-    // - The English translation shows only the current word centered.
+    // Logical order (for display in an RTL container): previous word, current word, next word.
+    // - If the current word is the first in the ayah, use the last word from the previous ayah as the "previous" word.
+    // - If the current word is the last in the ayah, use the end-of-ayah marker "۝" (U+06DD) as the "next" word.
+    // Then, pre-calculate the horizontal offset using a hidden container so that the current word appears exactly centered.
+    // For English, display only the current word's translation centered.
     function updateDisplay() {
       let currentTimeMs = audioPlayer.currentTime * 1000;
       let newIndex = -1;
@@ -469,26 +465,29 @@
         const currentWord = ayahWords[newIndex];
   
         if (window.innerWidth > window.innerHeight) { // Landscape mode
-          // Determine previous word: if current word is not the first, use the word immediately before;
-          // otherwise, if available, use the last word from the previous ayah.
+          // Determine previous word: if not first in ayah, use the immediate previous; otherwise, use the last word from previous ayah.
           let prevWord = (newIndex > 0) ? ayahWords[newIndex - 1] : (currentAyah > 1 ? prevAyahLastWord : null);
-          // Determine next word: if current word is not the last, use the word immediately after;
-          // otherwise, if available, use the first word from the next ayah.
-          let nextWord = (newIndex < ayahWords.length - 1) ? ayahWords[newIndex + 1] : (data && data[String(currentAyah + 1)] && data[String(currentAyah + 1)]["w"] && data[String(currentAyah + 1)]["w"].length > 0 ? data[String(currentAyah + 1)]["w"][0] : null);
+          // Determine next word: if not the last in ayah, use the immediate next; if last, use the end-of-ayah marker.
+          let nextWord = (newIndex < ayahWords.length - 1) ? ayahWords[newIndex + 1] : "۝";
   
-          // Assemble the sentence parts in this order: previous word, current word, next word.
-          // When rendered in RTL, they will appear as: next word (left), current word (center), previous word (right).
+          // Assemble sentence parts in logical order: previous, current, next.
+          // With an RTL container, this will display as: next (left), current (center), previous (right).
           let sentenceParts = [];
           if (prevWord) {
             sentenceParts.push(`<span style="color:#999;">${prevWord.c}</span>`);
           }
           sentenceParts.push(`<span id="currentWordSpan" style="color:#000;font-weight:bold;">${currentWord.c}</span>`);
           if (nextWord) {
-            sentenceParts.push(`<span style="color:#999;">${nextWord.c}</span>`);
+            // If nextWord is the string end marker, output it as is.
+            if (typeof nextWord === "string") {
+              sentenceParts.push(`<span style="color:#999;">${nextWord}</span>`);
+            } else {
+              sentenceParts.push(`<span style="color:#999;">${nextWord.c}</span>`);
+            }
           }
           let sentenceHTML = sentenceParts.join(" ");
   
-          // Create a hidden container with the same styling to pre-calculate offset.
+          // Create a hidden container with the same styling as the visible Arabic container to pre-calculate offset.
           let temp = document.createElement("div");
           temp.style.position = "absolute";
           temp.style.visibility = "hidden";
@@ -506,7 +505,6 @@
           if (currentSpan) {
             let tempRect = temp.getBoundingClientRect();
             let currentRect = currentSpan.getBoundingClientRect();
-            // Calculate the center of the current word relative to the temporary container.
             let currentCenter = currentRect.left + currentRect.width / 2;
             let containerCenter = tempRect.left + tempRect.width / 2;
             let offset = containerCenter - currentCenter;
@@ -515,16 +513,16 @@
             // Render the Arabic sentence with the calculated offset.
             arabicText.innerHTML = `<div style="direction: rtl; white-space: nowrap; text-align: center; transform: translateX(${offset}px);">${sentenceHTML}</div>`;
           } else {
-            // Fallback: if measurement fails, just render normally.
+            document.body.removeChild(temp);
             arabicText.innerHTML = `<div style="direction: rtl; white-space: nowrap; text-align: center;">${sentenceHTML}</div>`;
           }
   
           // For English, display only the current word's translation centered.
-          englishText.innerHTML = `<div style="text-align:center;">${currentWord.e}</div>`;
+          englishText.innerHTML = `<div style="text-align: center;">${currentWord.e}</div>`;
         } else {
           // Portrait mode: show only the current word.
           arabicText.innerHTML = currentWord.c;
-          englishText.innerHTML = `<div style="text-align:center;">${currentWord.e}</div>`;
+          englishText.innerHTML = `<div style="text-align: center;">${currentWord.e}</div>`;
         }
   
         let surahStr = ("000" + surah).slice(-3);
