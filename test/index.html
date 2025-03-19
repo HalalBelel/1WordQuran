@@ -17,9 +17,7 @@
       overflow: hidden;
     }
 
-    /* Keep a subtle gradient for the background; you can remove if you prefer solid color */
     body {
-      /* Retain a modern background, but keep the Arabic text in Courier New */
       font-family: "Segoe UI", "Roboto", "Helvetica Neue", sans-serif; 
       background: linear-gradient(135deg, #e8f1f8, #f4f9fc);
       color: #333;
@@ -54,7 +52,6 @@
       margin-bottom: 2em;
     }
 
-    /* Form container: simplified approach with column layout */
     form {
       background: #ffffff;
       border-radius: 12px;
@@ -67,7 +64,6 @@
       margin-bottom: 1.5em;
     }
 
-    /* One row that holds surah and ayah side by side */
     .form-row {
       display: flex;
       gap: 1em;
@@ -93,7 +89,6 @@
       margin-top: 0.3em;
     }
 
-    /* Surah dropdown auto-sizes to container width if needed */
     #surahInput {
       width: 100%;
       box-sizing: border-box;
@@ -103,7 +98,6 @@
       min-width: 80px;
     }
 
-    /* Centered, green “Play” button */
     button[type="submit"] {
       background-color: #28a745;
       color: white;
@@ -172,7 +166,6 @@
       text-align: right;
     }
 
-    /* #fixedArabic is pinned at 20vh from the top */
     #fixedArabic {
       position: fixed;
       top: 20vh;
@@ -184,7 +177,6 @@
       overflow: visible;
     }
 
-    /* Retain original Arabic font: Courier New, monospace */
     .arabic {
       display: inline-block;
       font-family: "Courier New", monospace;
@@ -196,10 +188,8 @@
       text-align: center;
       position: relative;
       pointer-events: none;
-      color: #999;
     }
 
-    /* Translation container */
     #translationContainer {
       position: absolute;
       left: 50%;
@@ -223,8 +213,9 @@
   <div id="container">
     <!-- Start Screen -->
     <div id="startScreen">
-      <h1>OneWordQuran Player 2.0</h1>
+      <h1>OneWordQuran Player</h1>
       <div id="versionInfo"></div>
+
       <form id="playerForm">
         <div class="form-row">
           <label>
@@ -238,8 +229,10 @@
         </div>
         <button type="submit">Play</button>
       </form>
+
       <div id="updatesBox"></div>
     </div>
+
     <!-- Player Section -->
     <div id="playerSection">
       <div id="footerControls">
@@ -254,13 +247,22 @@
       </div>
     </div>
   </div>
+
   <script>
-    // Minimal tweaks based on previous learnings.
-    // We want the ayah end symbol (&#x06DD;) to be parsed as a glyph,
-    // but not to affect our measurements.
-    // In measureWordPositions(), we skip the end symbol by not including its width.
-    
+    // Minimal fix: use innerHTML or an HTML string with &#x06DD; so the entity is parsed as a glyph.
+
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
+
+    const modifiedDate = new Date(document.lastModified);
+    const versionText = "Version: " + modifiedDate.toLocaleDateString("en-AU") + " " + modifiedDate.toLocaleTimeString("en-AU");
+    document.getElementById("versionInfo").textContent = versionText;
+    document.getElementById("updatesBox").textContent = 
+      "Notes: Use horizontally to activate autoscrolling. " +
+      "Control speed using triple dots on the audio player. " +
+      "Licence: Data from VerseByVerseQuran.com. Code is opensource on github.com/HalalBelel/, " +
+      "please send feedback to info@onewordquran.com. May Allah bless M, RS, and all the contributors " +
+      versionText;
+
     const isTest = window.location.pathname.includes("/test/");
     function getJsonPath(surah) {
       return isTest ? `../json/${surah}.json` : `json/${surah}.json`;
@@ -268,7 +270,7 @@
     function getSurahNamesPath() {
       return isTest ? `../json/surahnames.json` : `json/surahnames.json`;
     }
-    
+
     let data = null;
     let surahNames = [];
     let currentAyah = 0;
@@ -276,15 +278,14 @@
     let ayahWords = [];
     let lastDisplayedIndex = -1;
     let prevAyahLastWord = null;
-    let wordRightPositions = [];
-    
+
     const audioPlayer = document.getElementById("audioPlayer");
     const arabicText = document.getElementById("arabicText");
     const englishText = document.getElementById("englishText");
     const indexDisplay = document.getElementById("indexDisplay");
     const surahInput = document.getElementById("surahInput");
     const ayahSelect = document.getElementById("ayahSelect");
-    
+
     let wakeLock = null;
     async function requestWakeLock() {
       if ('wakeLock' in navigator) {
@@ -304,23 +305,23 @@
         await requestWakeLock();
       }
     });
-    
+
     function setAppHeight() {
       document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
     }
     window.addEventListener('resize', setAppHeight);
     window.addEventListener('orientationchange', setAppHeight);
     setAppHeight();
-    
+
     const urlParams = new URLSearchParams(window.location.search);
     const urlSurah = urlParams.get('surah') || "";
     const urlAyah = urlParams.get('ayah') || "";
-    
+
     function updateURL() {
       const newUrl = `${window.location.pathname}?surah=${surah}&ayah=${currentAyah}`;
       history.replaceState(null, '', newUrl);
     }
-    
+
     function populateSurahSelect(names) {
       surahInput.innerHTML = "";
       names.forEach(item => {
@@ -330,7 +331,7 @@
         surahInput.appendChild(opt);
       });
     }
-    
+
     function populateAyahSelect(maxVerse) {
       ayahSelect.innerHTML = "";
       for (let i = 1; i <= maxVerse; i++) {
@@ -340,7 +341,7 @@
         ayahSelect.appendChild(opt);
       }
     }
-    
+
     surahInput.addEventListener("change", function() {
       const sNum = surahInput.value;
       const directMatch = surahNames.find(x => String(x["Surah Number"]) === sNum);
@@ -348,7 +349,7 @@
         populateAyahSelect(directMatch["Surah Verses"]);
       }
     });
-    
+
     function loadPrevAyah(ayah) {
       if (ayah > 1) {
         fetch(getJsonPath(ayah - 1))
@@ -363,7 +364,7 @@
         prevAyahLastWord = null;
       }
     }
-    
+
     async function loadSurahData(surah) {
       try {
         const r = await fetch(getJsonPath(surah));
@@ -372,17 +373,17 @@
         console.error("Error loading JSON data:", err);
       }
     }
-    
+
     function playAyah(ayah) {
       currentAyah = ayah;
       updateURL();
       loadPrevAyah(currentAyah);
-    
+
       const surahStr = ("000" + surah).slice(-3);
       const ayahStr = ("000" + ayah).slice(-3);
       const ayahData = data[String(ayah)];
       if (!ayahData) return;
-    
+
       ayahWords = ayahData["w"].map((word, i) => ({
         scheduledTime: (parseFloat(word["b"]) - 0.1) * 1000,
         c: word["c"],
@@ -390,14 +391,12 @@
         index: i
       }));
       lastDisplayedIndex = -1;
-    
+
       audioPlayer.src = remoteBaseUrl + surahStr + ayahStr + ".mp3";
       audioPlayer.load();
       audioPlayer.oncanplaythrough = function() {
         audioPlayer.play();
         requestWakeLock();
-        buildAyahLine();
-        measureWordPositions();
         updateDisplay();
       };
       // Pre-buffer next 3 ayahs
@@ -415,58 +414,7 @@
         }
       };
     }
-    
-    // Build the entire ayah line in #arabicText.
-    // This version uses innerHTML so that the entity &#x06DD; is parsed.
-    function buildAyahLine() {
-      arabicText.innerHTML = "";
-      if (prevAyahLastWord) {
-        let prevSpan = document.createElement("span");
-        prevSpan.className = "arabic";
-        prevSpan.style.color = "#999";
-        prevSpan.id = "word-prepend";
-        // Use innerHTML so that if prevAyahLastWord.c contains entities they render
-        prevSpan.innerHTML = prevAyahLastWord.c;
-        arabicText.appendChild(prevSpan);
-        arabicText.appendChild(document.createTextNode(" "));
-      }
-      ayahWords.forEach((w, i) => {
-        let span = document.createElement("span");
-        span.className = "arabic";
-        span.id = "word-" + i;
-        span.innerHTML = w.c;
-        arabicText.appendChild(span);
-        arabicText.appendChild(document.createTextNode(" "));
-      });
-      // Append the ayah end symbol using innerHTML so it renders as a glyph.
-      let endSymbol = document.createElement("span");
-      endSymbol.className = "arabic";
-      endSymbol.style.color = "#999";
-      endSymbol.id = "word-end";
-      endSymbol.innerHTML = "&#x06DD;";
-      arabicText.appendChild(endSymbol);
-    
-      // Reset transform
-      arabicText.style.transform = "translateX(0px)";
-    }
-    
-    // Measure each word's right edge (ignoring the end symbol)
-    function measureWordPositions() {
-      wordRightPositions = [];
-      for (let i = 0; i < ayahWords.length; i++) {
-        let wSpan = document.getElementById("word-" + i);
-        if (wSpan) {
-          let rect = wSpan.getBoundingClientRect();
-          let rightEdge = rect.left + rect.width;
-          wordRightPositions.push(rightEdge);
-        } else {
-          wordRightPositions.push(0);
-        }
-      }
-      // Instead of measuring the end symbol, ignore it.
-      // (Do not push anything for "word-end".)
-    }
-    
+
     function updateDisplay() {
       const currentTimeMs = audioPlayer.currentTime * 1000;
       
@@ -478,32 +426,29 @@
       let f = 0;
       if (i < ayahWords.length - 1) {
         f = (currentTimeMs - ayahWords[i].scheduledTime) / (ayahWords[i+1].scheduledTime - ayahWords[i].scheduledTime);
-        if (f < 0) f = 0;
-        if (f > 1) f = 1;
       }
       
-      // Build the sentence for measurement WITHOUT the end symbol.
-      let measurementParts = [];
+      // Build the line with an end symbol that is parsed as an entity
+      let sentenceParts = [];
       const offsetPrepend = prevAyahLastWord ? 1 : 0;
       if (prevAyahLastWord) {
-        measurementParts.push(`<span id="word-prepend" style="color:#999;">${prevAyahLastWord.c}</span>`);
+        sentenceParts.push(`<span id="word-prepend" style="color:#999;">${prevAyahLastWord.c}</span>`);
       }
       ayahWords.forEach((w, j) => {
         let spanId = `word-${j + offsetPrepend}`;
         if (j === i) {
-          measurementParts.push(`<span id="${spanId}" style="color:#000;font-weight:bold;">${w.c}</span>`);
+          sentenceParts.push(`<span id="${spanId}" style="color:#000;font-weight:bold;">${w.c}</span>`);
         } else {
-          measurementParts.push(`<span id="${spanId}" style="color:#999;">${w.c}</span>`);
+          sentenceParts.push(`<span id="${spanId}" style="color:#999;">${w.c}</span>`);
         }
       });
-      let measurementHTML = measurementParts.join(" ");
-      
-      // Build the full sentence including the end symbol for display.
-      let sentenceParts = measurementParts.slice();
+      // Here we use the entity in a string, so it gets parsed:
       sentenceParts.push(`<span id="word-end" style="color:#999;">&#x06DD;</span>`);
+
       const sentenceHTML = sentenceParts.join(" ");
       
       if (window.innerWidth > window.innerHeight) {
+        // Create a hidden container to measure
         let containerWidth = arabicText.offsetWidth;
         let temp = document.createElement("div");
         temp.style.position = "absolute";
@@ -515,13 +460,14 @@
         temp.style.direction = "rtl";
         temp.style.textAlign = "center";
         temp.style.width = containerWidth + "px";
-        temp.innerHTML = measurementHTML;
+        // Insert as HTML so the entity is parsed
+        temp.innerHTML = sentenceHTML;
         
         const fixedArabic = document.getElementById("fixedArabic");
         fixedArabic.appendChild(temp);
         
         const currentSpanId = `word-${i + offsetPrepend}`;
-        const nextSpanId = (i < ayahWords.length - 1) ? `word-${i+1+offsetPrepend}` : currentSpanId;
+        const nextSpanId = (i < ayahWords.length - 1) ? `word-${i+1+offsetPrepend}` : "word-end";
         
         const currentSpan = temp.querySelector("#" + currentSpanId);
         const nextSpan = temp.querySelector("#" + nextSpanId);
@@ -539,14 +485,20 @@
         }
         
         const effectiveRight = currentRight + f * (nextRight - currentRight);
-        let fixedArabicRect = fixedArabic.getBoundingClientRect();
-        const containerCenter = fixedArabicRect.left + fixedArabicRect.width / 2;
-        const offset = containerCenter - effectiveRight;
+        // Align with screen center
+        const screenCenter = window.innerWidth / 2;
+        const offset = screenCenter - effectiveRight;
         fixedArabic.removeChild(temp);
-        
-        arabicText.innerHTML = `<div style="white-space:nowrap;text-align:center;transform:translateX(${offset}px);">${sentenceHTML}</div>`;
+
+        // Now set the final line into arabicText
+        arabicText.innerHTML = `
+          <div style="white-space:nowrap;text-align:center;transform:translateX(${offset}px);">
+            ${sentenceHTML}
+          </div>
+        `;
         englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
       } else {
+        // portrait
         arabicText.innerHTML = ayahWords[i].c;
         englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
       }
@@ -558,7 +510,7 @@
       
       requestAnimationFrame(updateDisplay);
     }
-    
+
     // Load surah names, handle URL or default to Surah 1
     fetch(getSurahNamesPath())
       .then(r => r.json())
@@ -587,7 +539,7 @@
         }
       })
       .catch(err => console.error("Error loading surah names:", err));
-    
+
     document.getElementById("playerForm").addEventListener("submit", function(e) {
       e.preventDefault();
       surah = parseInt(surahInput.value);
@@ -599,7 +551,7 @@
       updateURL();
       document.getElementById("startScreen").style.display = "none";
       document.getElementById("playerSection").style.display = "block";
-    
+
       requestAnimationFrame(() => {
         loadPrevAyah(currentAyah);
         loadSurahData(surah).then(() => {
