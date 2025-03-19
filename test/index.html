@@ -261,8 +261,7 @@
   </div>
 
   <script>
-    // AUTHOR UPDATE: Simplified layout so that the "Play" button is always centered below Surah & Ayah.
-    // Retained original Arabic font: "Courier New", monospace.
+    // AUTHOR UPDATE: Now centers the current word based on the entire screen width in landscape mode.
 
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
 
@@ -459,12 +458,12 @@
       const sentenceHTML = sentenceParts.join(" ");
       
       if (window.innerWidth > window.innerHeight) {
+        // 1) Measure the positions using a hidden container
         let containerWidth = arabicText.offsetWidth;
         let temp = document.createElement("div");
         temp.style.position = "absolute";
         temp.style.visibility = "hidden";
         temp.style.whiteSpace = "nowrap";
-        /* Keep Arabic in Courier New, so use the .arabic styling approach */
         temp.style.fontFamily = "Courier New, monospace";
         temp.style.fontSize = "60px";
         temp.style.lineHeight = "1.2";
@@ -476,6 +475,7 @@
         const fixedArabic = document.getElementById("fixedArabic");
         fixedArabic.appendChild(temp);
         
+        // 2) Identify current and next word positions
         const currentSpanId = `word-${i + offsetPrepend}`;
         const nextSpanId = (i < ayahWords.length - 1) ? `word-${i+1+offsetPrepend}` : "word-end";
         
@@ -494,15 +494,24 @@
           nextRight = currentRight;
         }
         
+        // 3) Interpolate effective right edge
         const effectiveRight = currentRight + f * (nextRight - currentRight);
-        let fixedArabicRect = fixedArabic.getBoundingClientRect();
-        const containerCenter = fixedArabicRect.left + fixedArabicRect.width / 2;
-        const offset = containerCenter - effectiveRight;
+
+        // 4) Center on the full screen instead of container
+        const screenCenter = window.innerWidth / 2;
+        const offset = screenCenter - effectiveRight;
+
+        // 5) Clean up and apply the offset
         fixedArabic.removeChild(temp);
         
-        arabicText.innerHTML = `<div style="white-space:nowrap;text-align:center;transform:translateX(${offset}px);">${sentenceHTML}</div>`;
+        arabicText.innerHTML = `
+          <div style="white-space:nowrap;text-align:center;transform:translateX(${offset}px);">
+            ${sentenceHTML}
+          </div>
+        `;
         englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
       } else {
+        // portrait mode
         arabicText.innerHTML = ayahWords[i].c;
         englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
       }
