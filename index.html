@@ -4,15 +4,12 @@
   <meta charset="UTF-8">
   <!-- Ensure proper scaling on mobile devices -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OneWordQuran Player</title>
+  <title>OneWordQuran Player - Focus on one word at a time</title>
   <style>
     :root {
-      /* Control bar fixed at bottom: height 60px */
       --control-height: 60px;
-      /* We'll update app height dynamically */
       --app-height: 100vh;
     }
-    /* Prevent normal scrolling; we'll scroll within our containers */
     html, body {
       margin: 0;
       padding: 0;
@@ -20,72 +17,108 @@
       overflow: hidden;
     }
     body {
-      font-family: "Courier New", monospace;
-      background: #f0f0f0;
+      font-family: "Segoe UI", "Roboto", "Helvetica Neue", sans-serif; 
+      background: linear-gradient(135deg, #e8f1f8, #f4f9fc);
+      color: #333;
       text-align: center;
     }
-    /* Main container */
     #container {
       width: 90%;
       max-width: 800px;
       margin: auto;
       position: relative;
       height: 100%;
+      padding-top: 20px;
     }
-    /* Start Screen (scrollable if needed) */
     #startScreen {
       position: relative;
       margin-top: 10px;
       height: calc(var(--app-height) - 20px);
       overflow-y: auto;
     }
+    h1 {
+      font-size: 2.2rem;
+      color: #444;
+      margin-bottom: 0.2em;
+    }
     #versionInfo {
-      font-size: 1rem;
-      color: #555;
-      margin-bottom: 1em;
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 2em;
     }
     form {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 1.5em;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
       display: flex;
-      flex-wrap: wrap;
+      flex-direction: column;
       align-items: center;
-      justify-content: center;
       gap: 1em;
-      /* No extra bottom padding needed; the updates box is absolutely positioned */
+      margin-bottom: 1.5em;
+    }
+    .form-row {
+      display: flex;
+      gap: 1em;
+      flex-wrap: wrap;
+      justify-content: center;
     }
     form label {
-      font-size: 1.2rem;
+      font-size: 1rem;
+      color: #555;
       display: flex;
       flex-direction: column;
       align-items: flex-start;
     }
     input, button, select {
-      font-size: 1.2rem;
-      padding: 0.5em;
+      font-size: 1rem;
+      padding: 0.5em 1em;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      background: #fafafa;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
       margin-top: 0.3em;
     }
-    /* Normal block for author notes, so it won't overlap. */
+    #surahInput {
+      width: 100%;
+      box-sizing: border-box;
+      min-width: 150px;
+    }
+    #ayahSelect {
+      min-width: 80px;
+    }
+    button[type="submit"] {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    button[type="submit"]:hover {
+      background-color: #218838;
+    }
     #updatesBox {
-      margin-top: 1em;
+      border-radius: 8px;
+      border: none;
+      background: #fff;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.04);
+      color: #666;
+      font-size: 0.95rem;
+      padding: 0.5em;
       width: 90%;
       max-width: 800px;
-      margin-left: auto;
-      margin-right: auto;
-      height: 100px; /* You can adjust or remove this if you want auto-height. */
+      margin: auto;
+      margin-top: 1em;
+      height: 100px;
       resize: vertical;
       overflow-y: auto;
-      font-size: 1rem;
-      padding: 0.5em;
       box-sizing: border-box;
-      border: 1px solid #ccc;
-      background: #fff;
     }
-    /* Player Section */
     #playerSection {
       display: none;
       position: relative;
       height: 100%;
     }
-    /* Control Bar fixed at bottom */
     #footerControls {
       position: fixed;
       bottom: 0;
@@ -103,12 +136,10 @@
       box-sizing: border-box;
       padding: 0 0.5em;
     }
-    /* Audio controls on left */
     #audioPlayer {
       flex-shrink: 0;
       margin-right: 1em;
     }
-    /* Index display on right; truncated if too long */
     #indexDisplay {
       font-size: 1.2rem;
       color: #333;
@@ -118,7 +149,7 @@
       flex: 1;
       text-align: right;
     }
-    /* Fixed Arabic container: occupies 20vh and is placed exactly at 20vh from the top */
+    /* Fixed Arabic container: spans full width */
     #fixedArabic {
       position: fixed;
       top: 20vh;
@@ -127,21 +158,34 @@
       width: 90%;
       height: 20vh;
       pointer-events: none;
+      overflow: visible;
+    }
+    /* Arabic text container */
+    #arabicText {
+      display: inline-block;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    /* Entire ayah line container */
+    #arabicLine {
+      display: inline-block;
+      white-space: nowrap;
+      position: relative;
+      transform: translateX(0px);
     }
     .arabic {
-      font-size: 60px;  /* Hardcoded Arabic font size */
-      line-height: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0;
-      word-wrap: break-word;
-      white-space: normal;
+      font-family: "Courier New", monospace;
+      font-size: 60px;
+      direction: rtl;
+      text-align: center;
+      pointer-events: none;
+      color: #999;
+      margin: 0 0.2em;
     }
-    /* Scrollable Translation Container:
-       Starts 10px below the Arabic container.
-       Bottom is fixed above the control bar.
-    */
+    .arabic.current {
+      color: #000;
+      font-weight: bold;
+    }
     #translationContainer {
       position: absolute;
       left: 50%;
@@ -156,212 +200,154 @@
     }
     .english {
       font-size: 30px;
-      line-height: 1;
-    }
-    /* For narrow screens, stack form fields vertically */
-    @media (max-width:600px) {
-      form {
-        flex-direction: column;
-      }
+      line-height: 1.2;
     }
   </style>
 </head>
 <body>
-  <!-- Author can edit this text in the script below -->
   <div id="container">
     <!-- Start Screen -->
     <div id="startScreen">
       <h1>OneWordQuran Player</h1>
       <div id="versionInfo"></div>
       <form id="playerForm">
-        <label>
-          Surah:
-          <!-- Use a text input with a datalist for autocomplete -->
-          <input type="text" id="surahInput" list="surahList" required>
-          <datalist id="surahList"></datalist>
-        </label>
-        <label>
-          Ayah:
-          <!-- Use a select element for ayah numbers -->
-          <select id="ayahSelect" required></select>
-        </label>
+        <div class="form-row">
+          <label>
+            Surah:
+            <input type="text" id="surahInput" list="surahList" required>
+            <datalist id="surahList"></datalist>
+          </label>
+          <label>
+            Ayah:
+            <select id="ayahSelect" required></select>
+          </label>
+        </div>
         <button type="submit">Play</button>
       </form>
-      <!-- New read-only updates box (timestamp appended automatically) -->
       <div id="updatesBox"></div>
     </div>
     <!-- Player Section -->
     <div id="playerSection">
-      <!-- Fixed Control Bar at Bottom -->
       <div id="footerControls">
         <audio id="audioPlayer" controls></audio>
         <div id="indexDisplay"></div>
       </div>
-      <!-- Fixed Arabic Container at 20vh from top, height 20vh -->
       <div id="fixedArabic">
-        <span id="arabicText" class="arabic"></span>
+        <span id="arabicText" class="arabic">
+          <span id="arabicLine"></span>
+        </span>
       </div>
-      <!-- Scrollable Translation Container -->
       <div id="translationContainer">
         <span id="englishText" class="english"></span>
       </div>
     </div>
   </div>
-
   <script>
-    // Author can edit this text for updates:
-    const AUTHOR_UPDATE = "Notes: Click the triple dots on the audio player to open playback speed menu. Licence: Data from VerseByVerseQuran.com";
-
-    // Define remoteBaseUrl
+    // Minimal tweaks based on our previous learnings.
+    // The code below uses textContent (so that "&#x06DD;" remains as plaintext)
+    // and measures word widths ignoring the end symbol.
+    // It also updates the URL at the start of each ayah via playAyah().
+    
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
-
-    // Set version using document.lastModified in Australian format
-    const modifiedDate = new Date(document.lastModified);
-    const versionText = "Version: " + modifiedDate.toLocaleDateString("en-AU") + " " + modifiedDate.toLocaleTimeString("en-AU");
-    document.getElementById("versionInfo").textContent = versionText;
-
-    // Put the author update plus the timestamp into the updatesBox
-    document.getElementById("updatesBox").textContent = AUTHOR_UPDATE + "\n" + versionText;
-
-    // Detect if we're in a "test" subfolder
     const isTest = window.location.pathname.includes("/test/");
-
-    // Build the JSON path accordingly
+    
     function getJsonPath(surah) {
       return isTest ? `../json/${surah}.json` : `json/${surah}.json`;
     }
-    // Build path for surahnames.json
     function getSurahNamesPath() {
       return isTest ? `../json/surahnames.json` : `json/surahnames.json`;
     }
-
+    
     let data = null;
     let surahNames = [];
     let currentAyah = 0;
     let surah = 0;
     let ayahWords = [];
     let lastDisplayedIndex = -1;
-
+    let prevAyahLastWord = null;
+    let wordRightPositions = [];
+    
     const audioPlayer = document.getElementById("audioPlayer");
     const arabicText = document.getElementById("arabicText");
+    const arabicLine = document.getElementById("arabicLine");
     const englishText = document.getElementById("englishText");
     const indexDisplay = document.getElementById("indexDisplay");
-
-    // Surah & Ayah fields
     const surahInput = document.getElementById("surahInput");
     const surahList = document.getElementById("surahList");
     const ayahSelect = document.getElementById("ayahSelect");
-
-    // Keep track of filtered surahs in case the user clicks away
-    let filteredSurahs = [];
-
-    // Dynamic app height
-    function setAppHeight() {
-      document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
-    }
-    window.addEventListener('resize', setAppHeight);
-    window.addEventListener('orientationchange', setAppHeight);
-    setAppHeight();
-
-    // URL parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlSurah = urlParams.get('surah') || "";
-    const urlAyah = urlParams.get('ayah') || "";
-
-    // Update URL with current surah & ayah
-    function updateURL() {
-      const newUrl = `${window.location.pathname}?surah=${surah}&ayah=${currentAyah}`;
-      history.replaceState(null, '', newUrl);
-    }
-
-    // Wake lock to prevent mobile idling
+    
     let wakeLock = null;
     async function requestWakeLock() {
-      if ('wakeLock' in navigator) {
+      if ("wakeLock" in navigator) {
         try {
-          wakeLock = await navigator.wakeLock.request('screen');
-          wakeLock.addEventListener('release', () => {
-            console.log('Screen Wake Lock was released');
+          wakeLock = await navigator.wakeLock.request("screen");
+          wakeLock.addEventListener("release", () => {
+            console.log("Screen Wake Lock was released");
           });
-          console.log('Screen Wake Lock is active');
+          console.log("Screen Wake Lock is active");
         } catch (err) {
           console.error(`${err.name}, ${err.message}`);
         }
       }
     }
-    document.addEventListener('visibilitychange', async () => {
-      if (document.visibilityState === 'visible' && wakeLock === null) {
+    document.addEventListener("visibilitychange", async () => {
+      if (document.visibilityState === "visible" && wakeLock === null) {
         await requestWakeLock();
       }
     });
-
-    // Load surah names from surahnames.json
-    fetch(getSurahNamesPath())
-      .then(response => response.json())
-      .then(json => {
-        surahNames = json;
-        populateSurahDatalist(surahNames);
-
-        // After loading, if we have a surah param, attempt to auto-fill
-        if(urlSurah) {
-          surahInput.value = urlSurah;
-          autoFillSurahFromInput(); // same logic as blur
-          // If we also have an ayah param, set it in the select
-          if(urlAyah) {
-            ayahSelect.value = urlAyah; 
-          }
-        }
-      })
-      .catch(err => console.error("Error loading surah names:", err));
-
-    // Populate the datalist for surah selection
+    
+    function setAppHeight() {
+      document.documentElement.style.setProperty("--app-height", `${window.innerHeight}px`);
+    }
+    window.addEventListener("resize", setAppHeight);
+    window.addEventListener("orientationchange", setAppHeight);
+    setAppHeight();
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlSurah = urlParams.get("surah") || "";
+    const urlAyah = urlParams.get("ayah") || "";
+    
+    function updateURL() {
+      const newUrl = `${window.location.pathname}?surah=${surah}&ayah=${currentAyah}`;
+      history.replaceState(null, "", newUrl);
+    }
+    
     function populateSurahDatalist(names) {
       names.forEach(item => {
-        const option = document.createElement("option");
-        // Use colon as delimiter, e.g. "20: Taha (Ta-Ha)"
-        option.value = item["Surah Number"] + ": " + item["Surah Name"];
-        surahList.appendChild(option);
+        const opt = document.createElement("option");
+        opt.value = item["Surah Number"] + ": " + item["Surah Name"];
+        surahList.appendChild(opt);
       });
     }
-
-    // Filter surahs as user types
+    
     surahInput.addEventListener("input", function() {
       const inputVal = surahInput.value.toLowerCase().trim();
-      // Clear the existing datalist options
       surahList.innerHTML = "";
-      filteredSurahs = surahNames.filter(item => {
+      let filtered = surahNames.filter(item => {
         const fullText = item["Surah Number"] + ": " + item["Surah Name"];
         return fullText.toLowerCase().includes(inputVal);
       });
-      // Re-populate datalist with filtered results
-      filteredSurahs.forEach(item => {
-        const option = document.createElement("option");
-        option.value = item["Surah Number"] + ": " + item["Surah Name"];
-        surahList.appendChild(option);
+      filtered.forEach(item => {
+        const opt = document.createElement("option");
+        opt.value = item["Surah Number"] + ": " + item["Surah Name"];
+        surahList.appendChild(opt);
       });
     });
-
-    // On blur, if user hasn't explicitly chosen from dropdown, pick the first filtered item
+    
     surahInput.addEventListener("blur", autoFillSurahFromInput);
-
     function autoFillSurahFromInput() {
       if(surahInput.value.trim() === "") return;
-      const exactMatch = filteredSurahs.find(item => 
+      const exactMatch = surahNames.find(item => 
         (item["Surah Number"] + ": " + item["Surah Name"]).toLowerCase() === surahInput.value.toLowerCase()
       );
-      if(!exactMatch && filteredSurahs.length > 0) {
-        // If there's no exact match, auto-fill with the first filtered item
-        const item = filteredSurahs[0];
+      if(!exactMatch && surahNames.length > 0) {
+        const item = surahNames[0];
         surahInput.value = item["Surah Number"] + ": " + item["Surah Name"];
         populateAyahSelect(item["Surah Verses"]);
       } else if(exactMatch) {
-        // If there's an exact match, ensure the ayah dropdown is updated
         populateAyahSelect(exactMatch["Surah Verses"]);
       } else {
-        // Possibly the user typed a valid surah number with no prior 'input' event,
-        // so let's see if there's a surah that exactly matches that number before the colon
-        const val = surahInput.value.trim();
-        const parts = val.split(":");
+        const parts = surahInput.value.trim().split(":");
         if(parts.length >= 1) {
           const sNum = parts[0].trim();
           const directMatch = surahNames.find(item => String(item["Surah Number"]) === sNum);
@@ -372,21 +358,19 @@
         }
       }
     }
-
+    
     function populateAyahSelect(maxVerse) {
       ayahSelect.innerHTML = "";
-      for(let i = 1; i <= maxVerse; i++) {
-        const option = document.createElement("option");
-        option.value = i;
-        option.text = i;
-        ayahSelect.appendChild(option);
+      for (let i = 1; i <= maxVerse; i++) {
+        const opt = document.createElement("option");
+        opt.value = i;
+        opt.text = i;
+        ayahSelect.appendChild(opt);
       }
     }
-
-    // On form submit, parse surah number from the input
+    
     document.getElementById("playerForm").addEventListener("submit", function(e) {
       e.preventDefault();
-      // Parse surah number from input by splitting on colon
       const val = surahInput.value.trim();
       const parts = val.split(":");
       if(parts.length < 2) {
@@ -402,48 +386,62 @@
       updateURL();
       document.getElementById("startScreen").style.display = "none";
       document.getElementById("playerSection").style.display = "block";
-      loadSurahData(surah).then(() => {
-        playAyah(currentAyah);
+    
+      requestAnimationFrame(() => {
+        loadPrevAyah(currentAyah);
+        loadSurahData(surah).then(() => {
+          playAyah(currentAyah);
+        });
       });
     });
-
+    
+    function loadPrevAyah(ayah) {
+      if (ayah > 1) {
+        fetch(getJsonPath(ayah - 1))
+          .then(r => r.json())
+          .then(prevData => {
+            if(prevData && prevData["w"] && prevData["w"].length > 0) {
+              prevAyahLastWord = prevData["w"][prevData["w"].length - 1];
+            }
+          })
+          .catch(err => console.error("Error loading previous ayah:", err));
+      } else {
+        prevAyahLastWord = null;
+      }
+    }
+    
     async function loadSurahData(surah) {
       try {
-        const response = await fetch(getJsonPath(surah));
-        data = await response.json();
+        const r = await fetch(getJsonPath(surah));
+        data = await r.json();
       } catch (err) {
         console.error("Error loading JSON data:", err);
       }
     }
-
+    
     function playAyah(ayah) {
       currentAyah = ayah;
       updateURL();
-      const surahStr = ("000" + surah).slice(-3);
-      const ayahStr = ("000" + ayah).slice(-3);
       const ayahData = data[String(ayah)];
       if (!ayahData) return;
-      ayahWords = ayahData["w"].map(word => ({
+      ayahWords = ayahData["w"].map((word, i) => ({
         scheduledTime: (parseFloat(word["b"]) - 0.1) * 1000,
         c: word["c"],
-        e: word["e"]
+        e: word["e"],
+        index: i
       }));
       lastDisplayedIndex = -1;
+      let surahStr = String(surah).padStart(3, "0");
+      let ayahStr = String(ayah).padStart(3, "0");
       audioPlayer.src = remoteBaseUrl + surahStr + ayahStr + ".mp3";
       audioPlayer.load();
       audioPlayer.oncanplaythrough = function() {
         audioPlayer.play();
         requestWakeLock();
+        buildAyahLine();
+        measureWordPositions();
         updateDisplay();
       };
-      // Pre-buffer next 3 ayahs if available
-      for (let next = ayah + 1; next <= ayah + 3; next++) {
-        if (data[String(next)]) {
-          let nextAyahStr = ("000" + next).slice(-3);
-          let audio = new Audio(remoteBaseUrl + surahStr + nextAyahStr + ".mp3");
-          audio.preload = "auto";
-        }
-      }
       audioPlayer.onended = function() {
         if (data[String(ayah + 1)]) {
           currentAyah = ayah + 1;
@@ -451,29 +449,160 @@
         }
       };
     }
-
-    function updateDisplay() {
-      let currentTimeMs = audioPlayer.currentTime * 1000;
-      let newIndex = -1;
+    
+    // Build the ayah line; we use textContent for words so that "&#x06DD;" remains as plaintext.
+    function buildAyahLine() {
+      // Clear previous content from arabicLine
+      arabicLine.innerHTML = "";
+      if (prevAyahLastWord) {
+        let prevSpan = document.createElement("span");
+        prevSpan.className = "arabic";
+        prevSpan.style.color = "#999";
+        prevSpan.id = "word-prepend";
+        prevSpan.textContent = prevAyahLastWord.c;
+        arabicLine.appendChild(prevSpan);
+        arabicLine.appendChild(document.createTextNode(" "));
+      }
+      ayahWords.forEach((w, i) => {
+        let span = document.createElement("span");
+        span.className = "arabic";
+        span.id = "word-" + i;
+        span.textContent = w.c;
+        arabicLine.appendChild(span);
+        arabicLine.appendChild(document.createTextNode(" "));
+      });
+      // Append the ayah end symbol as plaintext so that it works as before
+      let endSymbol = document.createElement("span");
+      endSymbol.className = "arabic";
+      endSymbol.style.color = "#999";
+      endSymbol.id = "word-end";
+      // Use textContent so that the entity is not parsed (keeps the behavior that works)
+      endSymbol.textContent = "&#x06DD;";
+      arabicLine.appendChild(endSymbol);
+    
+      // Reset any previous transform
+      arabicLine.style.transform = "translateX(0px)";
+    }
+    
+    // Measure each word's right edge, ignoring the end symbol entirely.
+    function measureWordPositions() {
+      wordRightPositions = [];
       for (let i = 0; i < ayahWords.length; i++) {
-        if (ayahWords[i].scheduledTime <= currentTimeMs) {
-          newIndex = i;
+        let wSpan = document.getElementById("word-" + i);
+        if (wSpan) {
+          let rect = wSpan.getBoundingClientRect();
+          let rightEdge = rect.left + rect.width;
+          wordRightPositions.push(rightEdge);
         } else {
-          break;
+          wordRightPositions.push(0);
         }
       }
-      if (newIndex !== lastDisplayedIndex && newIndex >= 0) {
-        lastDisplayedIndex = newIndex;
-        const word = ayahWords[newIndex];
-        arabicText.innerHTML = word.c;
-        englishText.innerHTML = word.e;
-        let surahStr = ("000" + surah).slice(-3);
-        let ayahStr = ("000" + currentAyah).slice(-3);
-        let wordIndexStr = ("000" + (newIndex + 1)).slice(-3);
-        indexDisplay.textContent = `Index: ${surahStr}:${ayahStr}:${wordIndexStr}`;
+      // Do NOT measure the end symbol; it is ignored in offset calculations.
+    }
+    
+    // Update display using stored measurements and partial interpolation.
+    function updateDisplay() {
+      const currentTimeMs = audioPlayer.currentTime * 1000;
+      
+      let i = 0;
+      for (; i < ayahWords.length - 1; i++) {
+        if (currentTimeMs < ayahWords[i+1].scheduledTime) break;
       }
+      
+      let f = 0;
+      if (i < ayahWords.length - 1) {
+        f = (currentTimeMs - ayahWords[i].scheduledTime) / (ayahWords[i+1].scheduledTime - ayahWords[i].scheduledTime);
+        f = Math.max(0, Math.min(1, f));
+      }
+      
+      // Highlight the current word in the rendered line
+      for (let j = 0; j < ayahWords.length; j++) {
+        let wSpan = document.getElementById("word-" + j);
+        if (wSpan) {
+          if (j === i) {
+            wSpan.classList.add("current");
+          } else {
+            wSpan.classList.remove("current");
+          }
+        }
+      }
+      
+      // Show translation for current word
+      englishText.textContent = ayahWords[i].e;
+      
+      // Use stored measurements to compute effective right edge and shift the line.
+      if (wordRightPositions.length >= ayahWords.length) {
+        let currentRight = wordRightPositions[i];
+        let nextRight = (i < wordRightPositions.length - 1) ? wordRightPositions[i+1] : currentRight;
+        let effectiveRight = currentRight + f * (nextRight - currentRight);
+        let screenCenter = window.innerWidth / 2;
+        let offset = screenCenter - effectiveRight;
+        arabicLine.style.transform = `translateX(${offset}px)`;
+      }
+      
+      // Update index display
+      let surahStr = String(surah).padStart(3, "0");
+      let ayahStr = String(currentAyah).padStart(3, "0");
+      let wordIndexStr = String(i + 1).padStart(3, "0");
+      indexDisplay.textContent = `Index: ${surahStr}:${ayahStr}:${wordIndexStr}`;
+      
       requestAnimationFrame(updateDisplay);
     }
+    
+    // Load surah names and update surah/ayah fields.
+    fetch(getSurahNamesPath())
+      .then(r => r.json())
+      .then(json => {
+        surahNames = json;
+        populateSurahSelect(surahNames);
+        if (urlSurah) {
+          let parts = urlSurah.split(":");
+          if (parts.length >= 1) {
+            surahInput.value = parts[0].trim();
+          }
+          const directMatch = surahNames.find(x => String(x["Surah Number"]) === surahInput.value);
+          if (directMatch) {
+            populateAyahSelect(directMatch["Surah Verses"]);
+          }
+          if (urlAyah) {
+            ayahSelect.value = urlAyah;
+          }
+        } else {
+          // Default to Surah Fatiha (chapter 1)
+          surahInput.value = "1";
+          const directMatch = surahNames.find(x => String(x["Surah Number"]) === "1");
+          if (directMatch) {
+            populateAyahSelect(directMatch["Surah Verses"]);
+          }
+        }
+      })
+      .catch(err => console.error("Error loading surah names:", err));
+    
+    document.getElementById("playerForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const val = surahInput.value.trim();
+      const parts = val.split(":");
+      if(parts.length < 2) {
+        alert("Please select a valid surah from the list.");
+        return;
+      }
+      surah = parseInt(parts[0].trim());
+      if(isNaN(surah)) {
+        alert("Please select a valid surah from the list.");
+        return;
+      }
+      currentAyah = parseInt(ayahSelect.value);
+      updateURL();
+      document.getElementById("startScreen").style.display = "none";
+      document.getElementById("playerSection").style.display = "block";
+    
+      requestAnimationFrame(() => {
+        loadPrevAyah(currentAyah);
+        loadSurahData(surah).then(() => {
+          playAyah(currentAyah);
+        });
+      });
+    });
   </script>
 </body>
 </html>
