@@ -57,6 +57,11 @@
       padding: 0.5em;
       margin-top: 0.3em;
     }
+    /* New rule: make the surah dropdown auto-size to the container width */
+    #surahInput {
+      width: 100%;
+      box-sizing: border-box;
+    }
     #updatesBox {
       margin-top: 1em;
       width: 90%;
@@ -163,7 +168,7 @@
       <form id="playerForm">
         <label>
           Surah:
-          <!-- Changed from a text input with datalist to a select dropdown -->
+          <!-- Surah dropdown now auto-sizes and will trigger the native select on mobile -->
           <select id="surahInput" required></select>
         </label>
         <label>
@@ -275,7 +280,6 @@
       });
     }
 
-    // Remove previous event listeners for text input; add a change listener for select.
     surahInput.addEventListener("change", function() {
       const sNum = surahInput.value;
       const directMatch = surahNames.find(x => String(x["Surah Number"]) === sNum);
@@ -290,9 +294,8 @@
         surahNames = json;
         populateSurahSelect(surahNames);
         if (urlSurah) {
-          // Set the select's value based on URL surah number.
           let parts = urlSurah.split(":");
-          if(parts.length>=1){
+          if(parts.length >= 1){
             surahInput.value = parts[0].trim();
           }
           const directMatch = surahNames.find(x => String(x["Surah Number"]) === surahInput.value);
@@ -318,7 +321,6 @@
 
     document.getElementById("playerForm").addEventListener("submit", function(e) {
       e.preventDefault();
-      // Get surah from the select (its value is just the surah number)
       surah = parseInt(surahInput.value);
       if (isNaN(surah)) {
         alert("Please select a valid surah from the list.");
@@ -329,7 +331,6 @@
       document.getElementById("startScreen").style.display = "none";
       document.getElementById("playerSection").style.display = "block";
 
-      // Wait one RAF to ensure layout is stable, then start playback.
       requestAnimationFrame(() => {
         loadPrevAyah(currentAyah);
         loadSurahData(surah).then(() => {
@@ -373,7 +374,6 @@
       const ayahData = data[String(ayah)];
       if (!ayahData) return;
 
-      // Build array of words from the ayah.
       ayahWords = ayahData["w"].map((word, i) => ({
         scheduledTime: (parseFloat(word["b"]) - 0.1) * 1000,
         c: word["c"],
@@ -389,7 +389,6 @@
         requestWakeLock();
         updateDisplay();
       };
-      // Pre-buffer next 3 ayahs
       for (let next = ayah + 1; next <= ayah + 3; next++) {
         if (data[String(next)]) {
           let nextAyahStr = ("000" + next).slice(-3);
@@ -405,23 +404,19 @@
       };
     }
 
-    // Auto-scroll the full ayah line in landscape mode so that the right edge of the current word aligns with the screen’s center when its audio starts.
     function updateDisplay() {
       const currentTimeMs = audioPlayer.currentTime * 1000;
       
-      // Find index i such that ayahWords[i].scheduledTime <= t < ayahWords[i+1].scheduledTime.
       let i = 0;
       for (; i < ayahWords.length - 1; i++) {
         if (currentTimeMs < ayahWords[i+1].scheduledTime) break;
       }
       
-      // Calculate fraction f between word i and word i+1.
       let f = 0;
       if (i < ayahWords.length - 1) {
         f = (currentTimeMs - ayahWords[i].scheduledTime) / (ayahWords[i+1].scheduledTime - ayahWords[i].scheduledTime);
       }
       
-      // Assemble the sentence spans.
       let sentenceParts = [];
       const offsetPrepend = prevAyahLastWord ? 1 : 0;
       if (prevAyahLastWord) {
@@ -430,19 +425,16 @@
       ayahWords.forEach((w, j) => {
         let spanId = `word-${j + offsetPrepend}`;
         if (j === i) {
-          // Current word: render in bold black.
           sentenceParts.push(`<span id="${spanId}" style="color:#000;font-weight:bold;">${w.c}</span>`);
         } else {
           sentenceParts.push(`<span id="${spanId}" style="color:#999;">${w.c}</span>`);
         }
       });
-      // Always append the end-of-ayah marker with id "word-end"
       sentenceParts.push(`<span id="word-end" style="color:#999;">&#x06DD;</span>`);
       
       const sentenceHTML = sentenceParts.join(" ");
       
-      if (window.innerWidth > window.innerHeight) { // Landscape mode: auto-scroll full ayah
-        // Create a hidden container to measure positions.
+      if (window.innerWidth > window.innerHeight) {
         let containerWidth = arabicText.offsetWidth;
         let temp = document.createElement("div");
         temp.style.position = "absolute";
@@ -456,11 +448,9 @@
         temp.style.width = containerWidth + "px";
         temp.innerHTML = sentenceHTML;
         
-        // Append temp to fixedArabic so both measurement and display share the same coordinate context.
         const fixedArabic = document.getElementById("fixedArabic");
         fixedArabic.appendChild(temp);
         
-        // Determine the effective "current" word span id.
         const currentSpanId = `word-${i + offsetPrepend}`;
         const nextSpanId = (i < ayahWords.length - 1) ? `word-${i+1+offsetPrepend}` : "word-end";
         
@@ -470,7 +460,6 @@
         let currentRight, nextRight;
         if (currentSpan) {
           let currRect = currentSpan.getBoundingClientRect();
-          // Use right edge instead of center.
           currentRight = currRect.left + currRect.width;
         }
         if (nextSpan) {
@@ -480,20 +469,15 @@
           nextRight = currentRight;
         }
         
-        // Interpolate the effective right edge based on fraction f.
         const effectiveRight = currentRight + f * (nextRight - currentRight);
         let fixedArabicRect = fixedArabic.getBoundingClientRect();
         const containerCenter = fixedArabicRect.left + fixedArabicRect.width / 2;
         const offset = containerCenter - effectiveRight;
         fixedArabic.removeChild(temp);
         
-        // Render the sentence with the calculated offset.
         arabicText.innerHTML = `<div style="white-space:nowrap;text-align:center;transform:translateX(${offset}px);">${sentenceHTML}</div>`;
-        
-        // For English, show only the current word's translation.
         englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
       } else {
-        // Portrait mode: show only current word.
         arabicText.innerHTML = ayahWords[i].c;
         englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
       }
