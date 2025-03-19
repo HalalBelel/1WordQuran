@@ -16,9 +16,11 @@
       height: 100%;
       overflow: hidden;
     }
-    /* Use a modern font & subtle gradient background */
+
+    /* Keep a subtle gradient for the background; you can remove if you prefer solid color */
     body {
-      font-family: "Segoe UI", "Roboto", "Helvetica Neue", sans-serif;
+      /* Retain a modern background, but keep the Arabic text in Courier New */
+      font-family: "Segoe UI", "Roboto", "Helvetica Neue", sans-serif; 
       background: linear-gradient(135deg, #e8f1f8, #f4f9fc);
       color: #333;
       text-align: center;
@@ -30,7 +32,7 @@
       margin: auto;
       position: relative;
       height: 100%;
-      padding-top: 20px; /* extra spacing at the top */
+      padding-top: 20px;
     }
 
     #startScreen {
@@ -52,24 +54,26 @@
       margin-bottom: 2em;
     }
 
-    /* The form container: subtle shadow, rounded corners, white background */
+    /* Form container: simplified approach with column layout */
     form {
       background: #ffffff;
       border-radius: 12px;
       padding: 1.5em;
       box-shadow: 0 4px 8px rgba(0,0,0,0.05);
       display: flex;
-      flex-wrap: wrap;
+      flex-direction: column;   /* Column layout */
+      align-items: center;      /* Center everything */
       gap: 1em;
-      justify-content: center;
-      align-items: center; /* default on narrow screens */
       margin-bottom: 1.5em;
     }
-    /* On wider screens, align items by their baseline so the button lines up */
-    @media (min-width:600px) {
-      form {
-        align-items: baseline;
-      }
+
+    /* One row that holds surah and ayah side by side */
+    .form-row {
+      display: flex;
+      gap: 1em;
+      /* For smaller screens, they might stack automatically if space is too small */
+      flex-wrap: wrap;
+      justify-content: center;
     }
 
     form label {
@@ -90,13 +94,17 @@
       margin-top: 0.3em;
     }
 
-    /* Surah dropdown auto-sizes to container width */
+    /* Surah dropdown auto-sizes to container width if needed */
     #surahInput {
       width: 100%;
       box-sizing: border-box;
+      min-width: 150px; /* a small min width so it doesn’t get too narrow */
+    }
+    #ayahSelect {
+      min-width: 80px;
     }
 
-    /* Style the "Play" button with a vibrant color */
+    /* Centered, green “Play” button */
     button[type="submit"] {
       background-color: #28a745;
       color: white;
@@ -177,9 +185,10 @@
       overflow: visible; /* Ensures no vertical clipping */
     }
 
-    /* .arabic is an inline-block so we can measure spans */
+    /* Retain original Arabic font: Courier New, monospace */
     .arabic {
       display: inline-block;
+      font-family: "Courier New", monospace; /* Keep Arabic font the same */
       font-size: 60px;
       line-height: 1.2;
       margin: 0;
@@ -208,12 +217,6 @@
       font-size: 30px;
       line-height: 1.2;
     }
-
-    @media (max-width:600px) {
-      form {
-        flex-direction: column;
-      }
-    }
   </style>
 </head>
 <body>
@@ -222,17 +225,23 @@
     <div id="startScreen">
       <h1>Quran Player</h1>
       <div id="versionInfo"></div>
+
+      <!-- The form with surah/ayah in one row, then "Play" below, centered -->
       <form id="playerForm">
-        <label>
-          Surah:
-          <select id="surahInput" required></select>
-        </label>
-        <label>
-          Ayah:
-          <select id="ayahSelect" required></select>
-        </label>
+        <div class="form-row">
+          <label>
+            Surah:
+            <select id="surahInput" required></select>
+          </label>
+          <label>
+            Ayah:
+            <select id="ayahSelect" required></select>
+          </label>
+        </div>
+        <!-- Centered Play button always below surah/ayah -->
         <button type="submit">Play</button>
       </form>
+
       <div id="updatesBox"></div>
     </div>
 
@@ -252,8 +261,8 @@
   </div>
 
   <script>
-    // AUTHOR UPDATE: Improved styling. Use horizontally for autoscrolling. Speed control in audio player's triple-dot menu.
-    // Data from VerseByVerseQuran.com, code open-source on GitHub. For feedback: info@onewordquran.com
+    // AUTHOR UPDATE: Simplified layout so that the "Play" button is always centered below Surah & Ayah.
+    // Retained original Arabic font: "Courier New", monospace.
 
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
 
@@ -326,7 +335,6 @@
       history.replaceState(null, '', newUrl);
     }
 
-    // Populate the surah select dropdown
     function populateSurahSelect(names) {
       surahInput.innerHTML = "";
       names.forEach(item => {
@@ -337,7 +345,6 @@
       });
     }
 
-    // Populate the ayah select
     function populateAyahSelect(maxVerse) {
       ayahSelect.innerHTML = "";
       for (let i = 1; i <= maxVerse; i++) {
@@ -356,7 +363,6 @@
       }
     });
 
-    // Load last word of previous ayah if available
     function loadPrevAyah(ayah) {
       if (ayah > 1) {
         fetch(getJsonPath(ayah - 1))
@@ -406,7 +412,6 @@
         requestWakeLock();
         updateDisplay();
       };
-
       // Pre-buffer next 3 ayahs
       for (let next = ayah + 1; next <= ayah + 3; next++) {
         if (data[String(next)]) {
@@ -415,7 +420,6 @@
           audio.preload = "auto";
         }
       }
-
       audioPlayer.onended = function() {
         if (data[String(ayah + 1)]) {
           currentAyah = ayah + 1;
@@ -424,7 +428,6 @@
       };
     }
 
-    // Auto-scroll in landscape mode so that the right edge of the current word aligns with center
     function updateDisplay() {
       const currentTimeMs = audioPlayer.currentTime * 1000;
       
@@ -446,7 +449,6 @@
       ayahWords.forEach((w, j) => {
         let spanId = `word-${j + offsetPrepend}`;
         if (j === i) {
-          // Current word
           sentenceParts.push(`<span id="${spanId}" style="color:#000;font-weight:bold;">${w.c}</span>`);
         } else {
           sentenceParts.push(`<span id="${spanId}" style="color:#999;">${w.c}</span>`);
@@ -462,7 +464,8 @@
         temp.style.position = "absolute";
         temp.style.visibility = "hidden";
         temp.style.whiteSpace = "nowrap";
-        temp.style.fontFamily = "Segoe UI, Roboto, Helvetica Neue, sans-serif";
+        /* Keep Arabic in Courier New, so use the .arabic styling approach */
+        temp.style.fontFamily = "Courier New, monospace";
         temp.style.fontSize = "60px";
         temp.style.lineHeight = "1.2";
         temp.style.direction = "rtl";
@@ -512,15 +515,13 @@
       requestAnimationFrame(updateDisplay);
     }
 
-    // Fetch surah names and set defaults or URL-based values
+    // Load surah names, handle URL or default to Surah 1
     fetch(getSurahNamesPath())
       .then(r => r.json())
       .then(json => {
         surahNames = json;
         populateSurahSelect(surahNames);
-
         if (urlSurah) {
-          // If there's a surah in the URL, parse it
           let parts = urlSurah.split(":");
           if (parts.length >= 1) {
             surahInput.value = parts[0].trim();
@@ -533,7 +534,7 @@
             ayahSelect.value = urlAyah;
           }
         } else {
-          // Default to Surah Fatiha (chapter 1) if no surah is in the URL
+          // Default to Surah Fatiha (chapter 1)
           surahInput.value = "1";
           const directMatch = surahNames.find(x => String(x["Surah Number"]) === "1");
           if (directMatch) {
@@ -543,7 +544,6 @@
       })
       .catch(err => console.error("Error loading surah names:", err));
 
-    // On form submit, hide start screen, show player, and load data
     document.getElementById("playerForm").addEventListener("submit", function(e) {
       e.preventDefault();
       surah = parseInt(surahInput.value);
