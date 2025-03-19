@@ -305,6 +305,13 @@
           if (urlAyah) {
             ayahSelect.value = urlAyah;
           }
+        } else {
+          // Default to Surah Fatiha (chapter 1) if no surah is in the URL.
+          surahInput.value = "1";
+          const directMatch = surahNames.find(x => String(x["Surah Number"]) === "1");
+          if(directMatch){
+            populateAyahSelect(directMatch["Surah Verses"]);
+          }
         }
       })
       .catch(err => console.error("Error loading surah names:", err));
