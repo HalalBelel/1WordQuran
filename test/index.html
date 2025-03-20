@@ -440,10 +440,14 @@
       audioPlayer.src = remoteBaseUrl + surahStr + ayahStr + ".mp3";
       audioPlayer.load();
       audioPlayer.oncanplaythrough = function() {
-        audioPlayer.play();
-        requestWakeLock();
+        // Build the new ayah before starting audio and fade in.
         buildAyahLine();
         measureWordPositions();
+        // Set both texts to start at 0 opacity.
+        englishText.style.opacity = 0;
+        arabicText.style.opacity = 0;
+        requestWakeLock();
+        audioPlayer.play();
         updateDisplay();
       };
       audioPlayer.onended = function() {
@@ -481,9 +485,9 @@
       endSymbol.innerHTML = "&#x06DD;";
       arabicLine.appendChild(endSymbol);
       
-      // Reset transform and set starting opacity to 0 for fade-in.
+      // Reset transform and opacity.
       arabicLine.style.transform = "translateX(0px)";
-      arabicLine.style.opacity = 0;
+      arabicLine.style.opacity = 1;
     }
     
     // Measure each word's right edge position.
@@ -585,13 +589,10 @@
         if (currentTimeMs > totalDurationMs - fadeOutDuration) {
           opacity = (totalDurationMs - currentTimeMs) / fadeOutDuration;
         }
-        // Ensure the last 100ms of audio have 0 opacity.
-        if (totalDurationMs - currentTimeMs < 100) {
-          opacity = 0;
-        }
       }
       englishText.style.opacity = opacity;
-      arabicLine.style.opacity = opacity;
+      // NEW: Apply the same fading effect to the Arabic text.
+      arabicText.style.opacity = opacity;
       
       requestAnimationFrame(updateDisplay);
     }
