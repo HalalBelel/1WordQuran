@@ -536,20 +536,24 @@
         arabicLine.style.transform = `translateX(${offset}px)`;
       }
       
-      // Fading logic: fade in over the first 500ms and fade out over the last 500ms.
-      const fadeInDuration = 500;  // in ms
-      const fadeOutDuration = 500; // in ms
+      // Fading logic:
+      const fadeInDuration = 300;   // Fade in over 300ms
+      const fadeOutDuration = 500;  // Fade out over 500ms
       let opacity = 1;
-      // Fade in at the beginning.
+      // Fade in at the beginning of the ayah based on audio time
       if (currentTimeMs < fadeInDuration) {
         opacity = currentTimeMs / fadeInDuration;
       }
-      // Fade out at the end.
-      let lastWordTime = ayahWords[ayahWords.length - 1].scheduledTime;
-      if (currentTimeMs > lastWordTime - fadeOutDuration) {
-        opacity = (lastWordTime - currentTimeMs) / fadeOutDuration;
+      // Fade out at the end based on the total audio duration
+      if (audioPlayer.duration) {
+        let totalDurationMs = audioPlayer.duration * 1000;
+        if (currentTimeMs > totalDurationMs - fadeOutDuration) {
+          opacity = (totalDurationMs - currentTimeMs) / fadeOutDuration;
+        }
       }
+      // Apply fade to both Arabic line and English text
       arabicLine.style.opacity = opacity;
+      englishText.style.opacity = opacity;
       
       // Update index display.
       let surahStr = String(surah).padStart(3, "0");
