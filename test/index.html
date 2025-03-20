@@ -212,6 +212,12 @@
         flex-direction: column;
       }
     }
+    /* Portrait mode override: Make Arabic text black */
+    @media (orientation: portrait) {
+      #arabicText {
+        color: #000 !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -591,7 +597,7 @@
         }
       }
       englishText.style.opacity = opacity;
-      // NEW: Apply the same fading effect to the Arabic text.
+      // Apply the same fading effect to the Arabic text.
       arabicText.style.opacity = opacity;
       
       requestAnimationFrame(updateDisplay);
