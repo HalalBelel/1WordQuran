@@ -16,7 +16,6 @@
       height: 100%;
       overflow: hidden;
     }
-
     /* Background & fonts */
     body {
       font-family: "Segoe UI", "Roboto", "Helvetica Neue", sans-serif; 
@@ -219,12 +218,12 @@
     <!-- Start Screen -->
     <div id="startScreen">
       <h1>OneWordQuran Player v3</h1>
+      <!-- Author notes and version stamp are now added to the start page -->
       <div id="versionInfo"></div>
       <form id="playerForm">
         <div class="form-row">
           <label>
             Surah:
-            <!-- Changed from text input with datalist to a select element -->
             <select id="surahInput" required></select>
           </label>
           <label>
@@ -254,12 +253,16 @@
   </div>
   
   <script>
-    // Minimal tweaks based on previous learnings.
-    // Changes:
-    // 1. Surah selection is now a select element (for native popup on mobile).
-    // 2. The ayah end symbol is inserted with innerHTML so that &#x06DD; renders as the glyph.
-    // 3. In measurement, the end symbol is excluded.
-    // 4. URL updating is done on playAyah(), so bookmarking works.
+    // Add back the author update and automatic version stamp.
+    const AUTHOR_UPDATE = "Notes: Click the triple dots on the audio player to open playback speed menu. Licence: Data from VerseByVerseQuran.com";
+    
+    // Set version using document.lastModified (Australian format)
+    const modifiedDate = new Date(document.lastModified);
+    const versionText = "Version: " + modifiedDate.toLocaleDateString("en-AU") + " " + modifiedDate.toLocaleTimeString("en-AU");
+    
+    // Set version info and updatesBox on the start screen.
+    document.getElementById("versionInfo").textContent = versionText;
+    document.getElementById("updatesBox").textContent = AUTHOR_UPDATE + "\n" + versionText;
     
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
     const isTest = window.location.pathname.includes("/test/");
@@ -361,7 +364,6 @@
             ayahSelect.value = urlAyah;
           }
         } else {
-          // Default to Surah Fatiha (1)
           surah = 1;
           surahInput.value = "1";
           const directMatch = surahNames.find(x => String(x["Surah Number"]) === "1");
@@ -476,7 +478,7 @@
       endSymbol.innerHTML = "&#x06DD;";
       arabicLine.appendChild(endSymbol);
     
-      // Reset transform
+      // Reset any previous transform
       arabicLine.style.transform = "translateX(0px)";
     }
     
@@ -544,63 +546,6 @@
       
       requestAnimationFrame(updateDisplay);
     }
-    
-    // Load surah names and update surah/ayah fields.
-    fetch(getSurahNamesPath())
-      .then(r => r.json())
-      .then(json => {
-        surahNames = json;
-        populateSurahSelect(surahNames);
-        if (urlSurah) {
-          surah = parseInt(urlSurah);
-          surahInput.value = surah;
-          const directMatch = surahNames.find(x => String(x["Surah Number"]) === String(surah));
-          if (directMatch) {
-            populateAyahSelect(directMatch["Surah Verses"]);
-          }
-          if (urlAyah) {
-            ayahSelect.value = urlAyah;
-          }
-        } else {
-          surah = 1;
-          surahInput.value = "1";
-          const directMatch = surahNames.find(x => String(x["Surah Number"]) === "1");
-          if (directMatch) {
-            populateAyahSelect(directMatch["Surah Verses"]);
-          }
-        }
-      })
-      .catch(err => console.error("Error loading surah names:", err));
-    
-    function populateSurahSelect(names) {
-      surahInput.innerHTML = "";
-      names.forEach(item => {
-        const opt = document.createElement("option");
-        opt.value = item["Surah Number"];
-        opt.text = item["Surah Number"] + ": " + item["Surah Name"];
-        surahInput.appendChild(opt);
-      });
-    }
-    
-    document.getElementById("playerForm").addEventListener("submit", function(e) {
-      e.preventDefault();
-      surah = parseInt(surahInput.value);
-      if (isNaN(surah)) {
-        alert("Please select a valid surah from the list.");
-        return;
-      }
-      currentAyah = parseInt(ayahSelect.value);
-      updateURL();
-      document.getElementById("startScreen").style.display = "none";
-      document.getElementById("playerSection").style.display = "block";
-    
-      requestAnimationFrame(() => {
-        loadPrevAyah(currentAyah);
-        loadSurahData(surah).then(() => {
-          playAyah(currentAyah);
-        });
-      });
-    });
   </script>
 </body>
 </html>
