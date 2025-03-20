@@ -175,6 +175,7 @@
       white-space: nowrap;
       position: relative;
       transform: translateX(0px);
+      transition: opacity 0.5s ease;  /* FADE transition added */
     }
     .arabic {
       font-family: "Courier New", monospace;
@@ -218,7 +219,7 @@
     <!-- Start Screen -->
     <div id="startScreen">
       <h1>OneWordQuran Player v3</h1>
-      <!-- Author notes and version stamp are now added to the start page -->
+      <!-- Author notes and version stamp are added here -->
       <div id="versionInfo"></div>
       <form id="playerForm">
         <div class="form-row">
@@ -255,12 +256,8 @@
   <script>
     // Add back the author update and automatic version stamp.
     const AUTHOR_UPDATE = "Notes: Click the triple dots on the audio player to open playback speed menu. Licence: Data from VerseByVerseQuran.com";
-    
-    // Set version using document.lastModified (Australian format)
     const modifiedDate = new Date(document.lastModified);
     const versionText = "Version: " + modifiedDate.toLocaleDateString("en-AU") + " " + modifiedDate.toLocaleTimeString("en-AU");
-    
-    // Set version info and updatesBox on the start screen.
     document.getElementById("versionInfo").textContent = versionText;
     document.getElementById("updatesBox").textContent = AUTHOR_UPDATE + "\n" + versionText;
     
@@ -438,6 +435,9 @@
         audioPlayer.play();
         requestWakeLock();
         buildAyahLine();
+        // Fading tweak: fade out then in.
+        arabicLine.style.opacity = 0;
+        setTimeout(() => { arabicLine.style.opacity = 1; }, 500);
         measureWordPositions();
         updateDisplay();
       };
