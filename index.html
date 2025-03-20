@@ -344,6 +344,15 @@
       }
     }
     
+    // NEW: Update ayah selection when surah selection changes.
+    surahInput.addEventListener("change", function() {
+      const selectedSurah = parseInt(surahInput.value);
+      const directMatch = surahNames.find(x => String(x["Surah Number"]) === String(selectedSurah));
+      if (directMatch) {
+        populateAyahSelect(directMatch["Surah Verses"]);
+      }
+    });
+    
     // Load surah names
     fetch(getSurahNamesPath())
       .then(r => r.json())
