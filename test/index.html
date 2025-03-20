@@ -169,13 +169,13 @@
       white-space: nowrap;
       pointer-events: none;
     }
-    /* Entire ayah line container */
+    /* Entire ayah line container with fade transition */
     #arabicLine {
       display: inline-block;
       white-space: nowrap;
       position: relative;
       transform: translateX(0px);
-      transition: opacity 0.5s ease;  /* FADE transition added */
+      transition: opacity 0.5s ease;
     }
     .arabic {
       font-family: "Courier New", monospace;
@@ -435,9 +435,6 @@
         audioPlayer.play();
         requestWakeLock();
         buildAyahLine();
-        // Fading tweak: fade out then in.
-        arabicLine.style.opacity = 0;
-        setTimeout(() => { arabicLine.style.opacity = 1; }, 500);
         measureWordPositions();
         updateDisplay();
       };
