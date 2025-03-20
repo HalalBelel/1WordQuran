@@ -505,15 +505,17 @@
       // Do NOT include the end symbol in measurements.
     }
     
-    // Update display using stored measurements.
+    // Update display using stored measurements and dynamically switch between scrolling and one-word mode.
     function updateDisplay() {
       const currentTimeMs = audioPlayer.currentTime * 1000;
       
+      // Determine current word index i.
       let i = 0;
       for (; i < ayahWords.length - 1; i++) {
         if (currentTimeMs < ayahWords[i+1].scheduledTime) break;
       }
       
+      // Calculate fraction f between words.
       let f = 0;
       if (i < ayahWords.length - 1) {
         f = (currentTimeMs - ayahWords[i].scheduledTime) / (ayahWords[i+1].scheduledTime - ayahWords[i].scheduledTime);
@@ -526,53 +528,92 @@
       let wordIndexStr = String(i + 1).padStart(3, "0");
       indexDisplay.textContent = `Index: ${surahStr}:${ayahStr}:${wordIndexStr}`;
       
-      // Orientation branch: In landscape mode, auto-scroll full ayah;
-      // in portrait mode, show only the current word.
+      // Branch based on orientation: landscape auto-scroll full ayah; portrait show only current word.
       if (window.innerWidth > window.innerHeight) {
-        // Landscape mode: use auto-scroll logic.
-        // Highlight the current word in the ayah line.
-        for (let j = 0; j < ayahWords.length; j++) {
-          let wSpan = document.getElementById("word-" + j);
-          if (wSpan) {
-            if (j === i) {
-              wSpan.classList.add("current");
-            } else {
-              wSpan.classList.remove("current");
-            }
+        // Landscape mode: Build the full ayah sentence.
+        let sentenceParts = [];
+        const offsetPrepend = prevAyahLastWord ? 1 : 0;
+        if (prevAyahLastWord) {
+          sentenceParts.push(`<span id="word-prepend" style="color:#999;">${prevAyahLastWord.c}</span>`);
+        }
+        ayahWords.forEach((w, j) => {
+          let spanId = `word-${j + offsetPrepend}`;
+          if (j === i) {
+            sentenceParts.push(`<span id="${spanId}" style="color:#000;font-weight:bold;">${w.c}</span>`);
+          } else {
+            sentenceParts.push(`<span id="${spanId}" style="color:#999;">${w.c}</span>`);
           }
+        });
+        sentenceParts.push(`<span id="word-end" style="color:#999;">&#x06DD;</span>`);
+        const sentenceHTML = sentenceParts.join(" ");
+        
+        // Create a temporary container to measure text positions.
+        let containerWidth = arabicText.offsetWidth;
+        let temp = document.createElement("div");
+        temp.style.position = "absolute";
+        temp.style.visibility = "hidden";
+        temp.style.whiteSpace = "nowrap";
+        temp.style.fontFamily = "Courier New, monospace";
+        temp.style.fontSize = "60px";
+        temp.style.lineHeight = "1.2";
+        temp.style.direction = "rtl";
+        temp.style.textAlign = "center";
+        temp.style.width = containerWidth + "px";
+        temp.innerHTML = sentenceHTML;
+        
+        // Append the temporary container to fixedArabic for proper measurement.
+        const fixedArabic = document.getElementById("fixedArabic");
+        fixedArabic.appendChild(temp);
+        
+        const currentSpanId = `word-${i + offsetPrepend}`;
+        const nextSpanId = (i < ayahWords.length - 1) ? `word-${i+1+offsetPrepend}` : "word-end";
+        const currentSpan = temp.querySelector("#" + currentSpanId);
+        const nextSpan = temp.querySelector("#" + nextSpanId);
+        
+        let currentRight = 0, nextRight = 0;
+        if (currentSpan) {
+          let currRect = currentSpan.getBoundingClientRect();
+          currentRight = currRect.left + currRect.width;
         }
-        // Show translation.
-        englishText.textContent = ayahWords[i].e;
-        // Use stored measurements to compute effective right edge.
-        if (wordRightPositions.length >= ayahWords.length) {
-          let currentRight = wordRightPositions[i];
-          let nextRight = (i < wordRightPositions.length - 1) ? wordRightPositions[i+1] : currentRight;
-          let effectiveRight = currentRight + f * (nextRight - currentRight);
-          let screenCenter = window.innerWidth / 2;
-          let offset = screenCenter - effectiveRight;
-          arabicLine.style.transform = `translateX(${offset}px)`;
+        if (nextSpan) {
+          let nextRect = nextSpan.getBoundingClientRect();
+          nextRight = nextRect.left + nextRect.width;
+        } else {
+          nextRight = currentRight;
         }
-        // Apply fading logic.
-        const fadeInDuration = 300;
-        const fadeOutDuration = 500;
-        let opacity = 1;
-        if (currentTimeMs < fadeInDuration) {
-          opacity = currentTimeMs / fadeInDuration;
-        }
-        if (audioPlayer.duration) {
-          let totalDurationMs = audioPlayer.duration * 1000;
-          if (currentTimeMs > totalDurationMs - fadeOutDuration) {
-            opacity = (totalDurationMs - currentTimeMs) / fadeOutDuration;
-          }
-        }
-        arabicLine.style.opacity = opacity;
-        englishText.style.opacity = opacity;
+        
+        // Interpolate effective right edge.
+        const effectiveRight = currentRight + f * (nextRight - currentRight);
+        let fixedArabicRect = fixedArabic.getBoundingClientRect();
+        const containerCenter = fixedArabicRect.left + fixedArabicRect.width / 2;
+        const offset = containerCenter - effectiveRight;
+        fixedArabic.removeChild(temp);
+        
+        // Render full ayah with the calculated offset.
+        arabicText.innerHTML = `<div style="white-space:nowrap;text-align:center;transform:translateX(${offset}px);">${sentenceHTML}</div>`;
+        // Display the current word's translation.
+        englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
       } else {
-        // Portrait mode: show only the current word.
-        // Hide the full ayah line display.
-        arabicText.textContent = ayahWords[i].c;
+        // Portrait mode: Display only the current word and its translation.
+        arabicText.innerHTML = ayahWords[i].c;
         englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
       }
+      
+      // Fading logic.
+      const fadeInDuration = 300;   // 300ms fade in.
+      const fadeOutDuration = 500;  // 500ms fade out.
+      let opacity = 1;
+      if (currentTimeMs < fadeInDuration) {
+        opacity = currentTimeMs / fadeInDuration;
+      }
+      if (audioPlayer.duration) {
+        let totalDurationMs = audioPlayer.duration * 1000;
+        if (currentTimeMs > totalDurationMs - fadeOutDuration) {
+          opacity = (totalDurationMs - currentTimeMs) / fadeOutDuration;
+        }
+      }
+      englishText.style.opacity = opacity;
+      // (Note: In landscape mode, the arabicText content is wrapped in a div so its opacity can be controlled via CSS if needed.)
       
       requestAnimationFrame(updateDisplay);
     }
