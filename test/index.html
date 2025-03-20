@@ -282,7 +282,7 @@
     let ayahWords = [];
     let lastDisplayedIndex = -1;
     let prevAyahLastWord = null;
-    let wordRightPositions = []; // stored measurements
+    let wordRightPositions = [];
     
     const audioPlayer = document.getElementById("audioPlayer");
     const arabicText = document.getElementById("arabicText");
@@ -578,7 +578,8 @@
         }
         englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
       } else {
-        // Portrait mode: update only the text content of the existing arabicLine.
+        // Portrait mode: clear any previous transform and update only the text content.
+        arabicLine.style.transform = "none";
         arabicLine.textContent = ayahWords[i].c;
         englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
       }
@@ -597,7 +598,6 @@
         }
       }
       englishText.style.opacity = opacity;
-      // Apply the same fading effect to the Arabic text.
       arabicText.style.opacity = opacity;
       
       requestAnimationFrame(updateDisplay);
