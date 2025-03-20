@@ -505,47 +505,32 @@
       // Do NOT include the end symbol in measurements.
     }
     
-    // Updated updateDisplay() function to show a single word in portrait mode.
+    // Update display using stored measurements.
     function updateDisplay() {
-      if (window.innerHeight > window.innerWidth) {
-        // Portrait mode: show single word without scrolling.
-        let currentTimeMs = audioPlayer.currentTime * 1000;
-        let newIndex = -1;
-        for (let i = 0; i < ayahWords.length; i++) {
-          if (ayahWords[i].scheduledTime <= currentTimeMs) {
-            newIndex = i;
-          } else {
-            break;
-          }
-        }
-        if (newIndex !== lastDisplayedIndex && newIndex >= 0) {
-          lastDisplayedIndex = newIndex;
-          const word = ayahWords[newIndex];
-          // Update the single word display in the arabicText element.
-          arabicText.textContent = word.c;
-          englishText.textContent = word.e;
-          let surahStr = String(surah).padStart(3, "0");
-          let ayahStr = String(currentAyah).padStart(3, "0");
-          let wordIndexStr = String(newIndex + 1).padStart(3, "0");
-          indexDisplay.textContent = `Index: ${surahStr}:${ayahStr}:${wordIndexStr}`;
-        }
-        requestAnimationFrame(updateDisplay);
-      } else {
-        // Landscape mode: scrolling display.
-        const currentTimeMs = audioPlayer.currentTime * 1000;
+      const currentTimeMs = audioPlayer.currentTime * 1000;
       
-        let i = 0;
-        for (; i < ayahWords.length - 1; i++) {
-          if (currentTimeMs < ayahWords[i+1].scheduledTime) break;
-        }
+      let i = 0;
+      for (; i < ayahWords.length - 1; i++) {
+        if (currentTimeMs < ayahWords[i+1].scheduledTime) break;
+      }
       
-        let f = 0;
-        if (i < ayahWords.length - 1) {
-          f = (currentTimeMs - ayahWords[i].scheduledTime) / (ayahWords[i+1].scheduledTime - ayahWords[i].scheduledTime);
-          f = Math.max(0, Math.min(1, f));
-        }
+      let f = 0;
+      if (i < ayahWords.length - 1) {
+        f = (currentTimeMs - ayahWords[i].scheduledTime) / (ayahWords[i+1].scheduledTime - ayahWords[i].scheduledTime);
+        f = Math.max(0, Math.min(1, f));
+      }
       
-        // Highlight the current word.
+      // Update index display.
+      let surahStr = String(surah).padStart(3, "0");
+      let ayahStr = String(currentAyah).padStart(3, "0");
+      let wordIndexStr = String(i + 1).padStart(3, "0");
+      indexDisplay.textContent = `Index: ${surahStr}:${ayahStr}:${wordIndexStr}`;
+      
+      // Orientation branch: In landscape mode, auto-scroll full ayah;
+      // in portrait mode, show only the current word.
+      if (window.innerWidth > window.innerHeight) {
+        // Landscape mode: use auto-scroll logic.
+        // Highlight the current word in the ayah line.
         for (let j = 0; j < ayahWords.length; j++) {
           let wSpan = document.getElementById("word-" + j);
           if (wSpan) {
@@ -556,10 +541,8 @@
             }
           }
         }
-      
         // Show translation.
         englishText.textContent = ayahWords[i].e;
-      
         // Use stored measurements to compute effective right edge.
         if (wordRightPositions.length >= ayahWords.length) {
           let currentRight = wordRightPositions[i];
@@ -569,10 +552,9 @@
           let offset = screenCenter - effectiveRight;
           arabicLine.style.transform = `translateX(${offset}px)`;
         }
-      
-        // Fading logic:
-        const fadeInDuration = 300;   // Fade in over 300ms
-        const fadeOutDuration = 500;  // Fade out over 500ms
+        // Apply fading logic.
+        const fadeInDuration = 300;
+        const fadeOutDuration = 500;
         let opacity = 1;
         if (currentTimeMs < fadeInDuration) {
           opacity = currentTimeMs / fadeInDuration;
@@ -585,14 +567,14 @@
         }
         arabicLine.style.opacity = opacity;
         englishText.style.opacity = opacity;
-      
-        let surahStr = String(surah).padStart(3, "0");
-        let ayahStr = String(currentAyah).padStart(3, "0");
-        let wordIndexStr = String(i + 1).padStart(3, "0");
-        indexDisplay.textContent = `Index: ${surahStr}:${ayahStr}:${wordIndexStr}`;
-      
-        requestAnimationFrame(updateDisplay);
+      } else {
+        // Portrait mode: show only the current word.
+        // Hide the full ayah line display.
+        arabicText.textContent = ayahWords[i].c;
+        englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
       }
+      
+      requestAnimationFrame(updateDisplay);
     }
   </script>
 </body>
