@@ -276,7 +276,7 @@
     let ayahWords = [];
     let lastDisplayedIndex = -1;
     let prevAyahLastWord = null;
-    let wordRightPositions = []; // Added from Code B
+    let wordRightPositions = []; // stored measurements
     
     const audioPlayer = document.getElementById("audioPlayer");
     const arabicText = document.getElementById("arabicText");
@@ -352,7 +352,7 @@
       }
     });
     
-    // Load surah names
+    // Load surah names.
     fetch(getSurahNamesPath())
       .then(r => r.json())
       .then(json => {
@@ -443,7 +443,7 @@
         audioPlayer.play();
         requestWakeLock();
         buildAyahLine();
-        measureWordPositions(); // Added from Code B
+        measureWordPositions();
         updateDisplay();
       };
       audioPlayer.onended = function() {
@@ -454,7 +454,7 @@
       };
     }
     
-    // Build the ayah line in #arabicLine.
+    // Build the full ayah line (used for landscape mode).
     function buildAyahLine() {
       arabicLine.innerHTML = "";
       if (prevAyahLastWord) {
@@ -474,16 +474,14 @@
         arabicLine.appendChild(span);
         arabicLine.appendChild(document.createTextNode(" "));
       });
-      // Append the ayah end symbol.
       let endSymbol = document.createElement("span");
       endSymbol.className = "arabic";
       endSymbol.style.color = "#999";
       endSymbol.id = "word-end";
-      // Use innerHTML so that the entity is parsed as a glyph.
       endSymbol.innerHTML = "&#x06DD;";
       arabicLine.appendChild(endSymbol);
-    
-      // Reset any previous transform and opacity.
+      
+      // Reset transform and opacity.
       arabicLine.style.transform = "translateX(0px)";
       arabicLine.style.opacity = 1;
     }
@@ -492,49 +490,46 @@
     function measureWordPositions() {
       wordRightPositions = [];
       const offsetPrepend = prevAyahLastWord ? 1 : 0;
-      
       if (prevAyahLastWord) {
         let prependSpan = document.getElementById("word-prepend");
         if (prependSpan) {
           let rect = prependSpan.getBoundingClientRect();
-          let rightEdge = rect.left + rect.width;
-          wordRightPositions.push(rightEdge);
+          wordRightPositions.push(rect.left + rect.width);
         }
       }
-      
       for (let i = 0; i < ayahWords.length; i++) {
         let wSpan = document.getElementById("word-" + i);
         if (wSpan) {
           let rect = wSpan.getBoundingClientRect();
-          let rightEdge = rect.left + rect.width;
-          wordRightPositions.push(rightEdge);
+          wordRightPositions.push(rect.left + rect.width);
         } else {
           wordRightPositions.push(0);
         }
       }
-      
       let endSymbol = document.getElementById("word-end");
       if (endSymbol) {
         let rect = endSymbol.getBoundingClientRect();
-        let rightEdge = rect.left + rect.width;
-        wordRightPositions.push(rightEdge);
+        wordRightPositions.push(rect.left + rect.width);
       }
     }
     
-    // Minimal fix: Ensure that when switching from portrait to landscape,
-    // the full ayah line is available for scrolling.
+    // Global variable to track orientation.
+    let currentOrientation = window.innerWidth > window.innerHeight ? "landscape" : "portrait";
+    
+    // Update display each frame.
     function updateDisplay() {
-      // When in landscape but #arabicLine is empty (portrait branch overwrote its contents),
-      // rebuild and re-measure.
-      if (window.innerWidth > window.innerHeight) {
-        if (!arabicLine || arabicLine.innerHTML.trim() === "") {
+      // Check for an orientation change.
+      let newOrientation = window.innerWidth > window.innerHeight ? "landscape" : "portrait";
+      if (newOrientation !== currentOrientation) {
+        currentOrientation = newOrientation;
+        if (currentOrientation === "landscape") {
+          // On switching to landscape, rebuild and re-measure the full line.
           buildAyahLine();
           measureWordPositions();
         }
       }
       
       const currentTimeMs = audioPlayer.currentTime * 1000;
-      
       let i = 0;
       for (; i < ayahWords.length - 1; i++) {
         if (currentTimeMs < ayahWords[i+1].scheduledTime) break;
@@ -552,30 +547,28 @@
       indexDisplay.textContent = `Index: ${surahStr}:${ayahStr}:${wordIndexStr}`;
       
       if (window.innerWidth > window.innerHeight) {
-        // Landscape mode: full ayah sentence with scrolling.
+        // Landscape mode: use stored measurements.
         for (let j = 0; j < ayahWords.length; j++) {
           let wSpan = document.getElementById("word-" + j);
           if (wSpan) {
             wSpan.className = (j === i) ? "arabic current" : "arabic";
           }
         }
-        
         if (wordRightPositions.length > 0) {
           const offsetPrepend = prevAyahLastWord ? 1 : 0;
           let adjustedIndex = i + offsetPrepend;
-          
           let currentRight = wordRightPositions[adjustedIndex];
-          let nextRight = (adjustedIndex < wordRightPositions.length - 1) ? wordRightPositions[adjustedIndex+1] : currentRight;
+          let nextRight = (adjustedIndex < wordRightPositions.length - 1)
+                          ? wordRightPositions[adjustedIndex+1]
+                          : currentRight;
           let effectiveRight = currentRight + f * (nextRight - currentRight);
           let screenCenter = window.innerWidth / 2;
           let offset = screenCenter - effectiveRight;
-          
           arabicLine.style.transform = `translateX(${offset}px)`;
         }
-        
         englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
       } else {
-        // Portrait mode: update only the text of the existing #arabicLine.
+        // Portrait mode: update only the text content of the existing arabicLine.
         arabicLine.textContent = ayahWords[i].c;
         englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
       }
@@ -598,7 +591,7 @@
       requestAnimationFrame(updateDisplay);
     }
     
-    // Handle orientation changes: re-measure positions in landscape.
+    // Re-measure stored positions on resize (landscape only).
     window.addEventListener("resize", function() {
       if (window.innerWidth > window.innerHeight && document.getElementById("playerSection").style.display === "block") {
         measureWordPositions();
