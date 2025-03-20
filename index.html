@@ -505,72 +505,94 @@
       // Do NOT include the end symbol in measurements.
     }
     
-    // Update display using stored measurements.
+    // Updated updateDisplay() function to show a single word in portrait mode.
     function updateDisplay() {
-      const currentTimeMs = audioPlayer.currentTime * 1000;
-      
-      let i = 0;
-      for (; i < ayahWords.length - 1; i++) {
-        if (currentTimeMs < ayahWords[i+1].scheduledTime) break;
-      }
-      
-      let f = 0;
-      if (i < ayahWords.length - 1) {
-        f = (currentTimeMs - ayahWords[i].scheduledTime) / (ayahWords[i+1].scheduledTime - ayahWords[i].scheduledTime);
-        f = Math.max(0, Math.min(1, f));
-      }
-      
-      // Highlight the current word.
-      for (let j = 0; j < ayahWords.length; j++) {
-        let wSpan = document.getElementById("word-" + j);
-        if (wSpan) {
-          if (j === i) {
-            wSpan.classList.add("current");
+      if (window.innerHeight > window.innerWidth) {
+        // Portrait mode: show single word without scrolling.
+        let currentTimeMs = audioPlayer.currentTime * 1000;
+        let newIndex = -1;
+        for (let i = 0; i < ayahWords.length; i++) {
+          if (ayahWords[i].scheduledTime <= currentTimeMs) {
+            newIndex = i;
           } else {
-            wSpan.classList.remove("current");
+            break;
           }
         }
-      }
-      
-      // Show translation.
-      englishText.textContent = ayahWords[i].e;
-      
-      // Use stored measurements to compute effective right edge.
-      if (wordRightPositions.length >= ayahWords.length) {
-        let currentRight = wordRightPositions[i];
-        let nextRight = (i < wordRightPositions.length - 1) ? wordRightPositions[i+1] : currentRight;
-        let effectiveRight = currentRight + f * (nextRight - currentRight);
-        let screenCenter = window.innerWidth / 2;
-        let offset = screenCenter - effectiveRight;
-        arabicLine.style.transform = `translateX(${offset}px)`;
-      }
-      
-      // Fading logic:
-      const fadeInDuration = 300;   // Fade in over 300ms
-      const fadeOutDuration = 500;  // Fade out over 500ms
-      let opacity = 1;
-      // Fade in at the beginning of the ayah based on audio time
-      if (currentTimeMs < fadeInDuration) {
-        opacity = currentTimeMs / fadeInDuration;
-      }
-      // Fade out at the end based on the total audio duration
-      if (audioPlayer.duration) {
-        let totalDurationMs = audioPlayer.duration * 1000;
-        if (currentTimeMs > totalDurationMs - fadeOutDuration) {
-          opacity = (totalDurationMs - currentTimeMs) / fadeOutDuration;
+        if (newIndex !== lastDisplayedIndex && newIndex >= 0) {
+          lastDisplayedIndex = newIndex;
+          const word = ayahWords[newIndex];
+          // Update the single word display in the arabicText element.
+          arabicText.textContent = word.c;
+          englishText.textContent = word.e;
+          let surahStr = String(surah).padStart(3, "0");
+          let ayahStr = String(currentAyah).padStart(3, "0");
+          let wordIndexStr = String(newIndex + 1).padStart(3, "0");
+          indexDisplay.textContent = `Index: ${surahStr}:${ayahStr}:${wordIndexStr}`;
         }
+        requestAnimationFrame(updateDisplay);
+      } else {
+        // Landscape mode: scrolling display.
+        const currentTimeMs = audioPlayer.currentTime * 1000;
+      
+        let i = 0;
+        for (; i < ayahWords.length - 1; i++) {
+          if (currentTimeMs < ayahWords[i+1].scheduledTime) break;
+        }
+      
+        let f = 0;
+        if (i < ayahWords.length - 1) {
+          f = (currentTimeMs - ayahWords[i].scheduledTime) / (ayahWords[i+1].scheduledTime - ayahWords[i].scheduledTime);
+          f = Math.max(0, Math.min(1, f));
+        }
+      
+        // Highlight the current word.
+        for (let j = 0; j < ayahWords.length; j++) {
+          let wSpan = document.getElementById("word-" + j);
+          if (wSpan) {
+            if (j === i) {
+              wSpan.classList.add("current");
+            } else {
+              wSpan.classList.remove("current");
+            }
+          }
+        }
+      
+        // Show translation.
+        englishText.textContent = ayahWords[i].e;
+      
+        // Use stored measurements to compute effective right edge.
+        if (wordRightPositions.length >= ayahWords.length) {
+          let currentRight = wordRightPositions[i];
+          let nextRight = (i < wordRightPositions.length - 1) ? wordRightPositions[i+1] : currentRight;
+          let effectiveRight = currentRight + f * (nextRight - currentRight);
+          let screenCenter = window.innerWidth / 2;
+          let offset = screenCenter - effectiveRight;
+          arabicLine.style.transform = `translateX(${offset}px)`;
+        }
+      
+        // Fading logic:
+        const fadeInDuration = 300;   // Fade in over 300ms
+        const fadeOutDuration = 500;  // Fade out over 500ms
+        let opacity = 1;
+        if (currentTimeMs < fadeInDuration) {
+          opacity = currentTimeMs / fadeInDuration;
+        }
+        if (audioPlayer.duration) {
+          let totalDurationMs = audioPlayer.duration * 1000;
+          if (currentTimeMs > totalDurationMs - fadeOutDuration) {
+            opacity = (totalDurationMs - currentTimeMs) / fadeOutDuration;
+          }
+        }
+        arabicLine.style.opacity = opacity;
+        englishText.style.opacity = opacity;
+      
+        let surahStr = String(surah).padStart(3, "0");
+        let ayahStr = String(currentAyah).padStart(3, "0");
+        let wordIndexStr = String(i + 1).padStart(3, "0");
+        indexDisplay.textContent = `Index: ${surahStr}:${ayahStr}:${wordIndexStr}`;
+      
+        requestAnimationFrame(updateDisplay);
       }
-      // Apply fade to both Arabic line and English text
-      arabicLine.style.opacity = opacity;
-      englishText.style.opacity = opacity;
-      
-      // Update index display.
-      let surahStr = String(surah).padStart(3, "0");
-      let ayahStr = String(currentAyah).padStart(3, "0");
-      let wordIndexStr = String(i + 1).padStart(3, "0");
-      indexDisplay.textContent = `Index: ${surahStr}:${ayahStr}:${wordIndexStr}`;
-      
-      requestAnimationFrame(updateDisplay);
     }
   </script>
 </body>
