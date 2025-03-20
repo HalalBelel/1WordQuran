@@ -475,8 +475,9 @@
       endSymbol.innerHTML = "&#x06DD;";
       arabicLine.appendChild(endSymbol);
     
-      // Reset any previous transform
+      // Reset any previous transform and opacity
       arabicLine.style.transform = "translateX(0px)";
+      arabicLine.style.opacity = 1;
     }
     
     // Measure each word's right edge, ignoring the end symbol.
@@ -534,6 +535,21 @@
         let offset = screenCenter - effectiveRight;
         arabicLine.style.transform = `translateX(${offset}px)`;
       }
+      
+      // Fading logic: fade in over the first 500ms and fade out over the last 500ms.
+      const fadeInDuration = 500;  // in ms
+      const fadeOutDuration = 500; // in ms
+      let opacity = 1;
+      // Fade in at the beginning.
+      if (currentTimeMs < fadeInDuration) {
+        opacity = currentTimeMs / fadeInDuration;
+      }
+      // Fade out at the end.
+      let lastWordTime = ayahWords[ayahWords.length - 1].scheduledTime;
+      if (currentTimeMs > lastWordTime - fadeOutDuration) {
+        opacity = (lastWordTime - currentTimeMs) / fadeOutDuration;
+      }
+      arabicLine.style.opacity = opacity;
       
       // Update index display.
       let surahStr = String(surah).padStart(3, "0");
