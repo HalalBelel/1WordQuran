@@ -16,7 +16,6 @@
       height: 100%;
       overflow: hidden;
     }
-
     /* Background & fonts */
     body {
       font-family: "Segoe UI", "Roboto", "Helvetica Neue", sans-serif; 
@@ -170,12 +169,13 @@
       white-space: nowrap;
       pointer-events: none;
     }
-    /* Entire ayah line container */
+    /* Entire ayah line container with fade transition */
     #arabicLine {
       display: inline-block;
       white-space: nowrap;
       position: relative;
       transform: translateX(0px);
+      transition: opacity 0.5s ease;
     }
     .arabic {
       font-family: "Courier New", monospace;
@@ -218,13 +218,13 @@
   <div id="container">
     <!-- Start Screen -->
     <div id="startScreen">
-      <h1>OneWordQuran Player</h1>
+      <h1>OneWordQuran Player v3</h1>
+      <!-- Author notes and version stamp are added here -->
       <div id="versionInfo"></div>
       <form id="playerForm">
         <div class="form-row">
           <label>
             Surah:
-            <!-- Changed from text input with datalist to a select element -->
             <select id="surahInput" required></select>
           </label>
           <label>
@@ -252,14 +252,13 @@
       </div>
     </div>
   </div>
-  
   <script>
-    // Minimal tweaks based on previous learnings.
-    // Changes:
-    // 1. Surah selection is now a select element (for native popup on mobile).
-    // 2. The ayah end symbol is inserted with innerHTML so that &#x06DD; renders as the glyph.
-    // 3. In measurement, the end symbol is excluded.
-    // 4. URL updating is done on playAyah(), so bookmarking works.
+    // Add back the author update and automatic version stamp.
+    const AUTHOR_UPDATE = "Notes: Rotate to activate autoscrolling. Control playback speed via triple dot menu. Licence: Data from VerseByVerseQuran.com, kindly send feedback to info@onewordquran.com, may Allah bless the contributors";
+    const modifiedDate = new Date(document.lastModified);
+    const versionText = "Version: " + modifiedDate.toLocaleDateString("en-AU") + " " + modifiedDate.toLocaleTimeString("en-AU");
+    document.getElementById("versionInfo").textContent = versionText;
+    document.getElementById("updatesBox").textContent = AUTHOR_UPDATE + "\n" + versionText;
     
     const remoteBaseUrl = "https://everyayah.com/data/Alafasy_128kbps/";
     const isTest = window.location.pathname.includes("/test/");
@@ -277,7 +276,7 @@
     let ayahWords = [];
     let lastDisplayedIndex = -1;
     let prevAyahLastWord = null;
-    let wordRightPositions = [];
+    let wordRightPositions = []; // Added from Code B
     
     const audioPlayer = document.getElementById("audioPlayer");
     const arabicText = document.getElementById("arabicText");
@@ -344,6 +343,15 @@
       }
     }
     
+    // NEW: Update ayah selection when surah selection changes.
+    surahInput.addEventListener("change", function() {
+      const selectedSurah = parseInt(surahInput.value);
+      const directMatch = surahNames.find(x => String(x["Surah Number"]) === String(selectedSurah));
+      if (directMatch) {
+        populateAyahSelect(directMatch["Surah Verses"]);
+      }
+    });
+    
     // Load surah names
     fetch(getSurahNamesPath())
       .then(r => r.json())
@@ -361,7 +369,6 @@
             ayahSelect.value = urlAyah;
           }
         } else {
-          // Default to Surah Fatiha (1)
           surah = 1;
           surahInput.value = "1";
           const directMatch = surahNames.find(x => String(x["Surah Number"]) === "1");
@@ -436,7 +443,7 @@
         audioPlayer.play();
         requestWakeLock();
         buildAyahLine();
-        measureWordPositions();
+        measureWordPositions(); // Added from Code B
         updateDisplay();
       };
       audioPlayer.onended = function() {
@@ -476,13 +483,27 @@
       endSymbol.innerHTML = "&#x06DD;";
       arabicLine.appendChild(endSymbol);
     
-      // Reset transform
+      // Reset any previous transform and opacity.
       arabicLine.style.transform = "translateX(0px)";
+      arabicLine.style.opacity = 1;
     }
     
-    // Measure each word's right edge, ignoring the end symbol.
+    // Added from Code B: Measure each word's right edge position
     function measureWordPositions() {
       wordRightPositions = [];
+      const offsetPrepend = prevAyahLastWord ? 1 : 0;
+      
+      // If we have a prepended word from previous ayah, measure it
+      if (prevAyahLastWord) {
+        let prependSpan = document.getElementById("word-prepend");
+        if (prependSpan) {
+          let rect = prependSpan.getBoundingClientRect();
+          let rightEdge = rect.left + rect.width;
+          wordRightPositions.push(rightEdge);
+        }
+      }
+      
+      // Measure each word in the current ayah
       for (let i = 0; i < ayahWords.length; i++) {
         let wSpan = document.getElementById("word-" + i);
         if (wSpan) {
@@ -493,47 +514,31 @@
           wordRightPositions.push(0);
         }
       }
-      // Do NOT include the end symbol in measurements.
+      
+      // Also measure the end symbol
+      let endSymbol = document.getElementById("word-end");
+      if (endSymbol) {
+        let rect = endSymbol.getBoundingClientRect();
+        let rightEdge = rect.left + rect.width;
+        wordRightPositions.push(rightEdge);
+      }
     }
     
-    // Update display using stored measurements.
+    // Update display using dynamic measurement or stored positions depending on orientation
     function updateDisplay() {
       const currentTimeMs = audioPlayer.currentTime * 1000;
       
+      // Determine current word index i.
       let i = 0;
       for (; i < ayahWords.length - 1; i++) {
         if (currentTimeMs < ayahWords[i+1].scheduledTime) break;
       }
       
+      // Calculate fraction f between words.
       let f = 0;
       if (i < ayahWords.length - 1) {
         f = (currentTimeMs - ayahWords[i].scheduledTime) / (ayahWords[i+1].scheduledTime - ayahWords[i].scheduledTime);
         f = Math.max(0, Math.min(1, f));
-      }
-      
-      // Highlight the current word.
-      for (let j = 0; j < ayahWords.length; j++) {
-        let wSpan = document.getElementById("word-" + j);
-        if (wSpan) {
-          if (j === i) {
-            wSpan.classList.add("current");
-          } else {
-            wSpan.classList.remove("current");
-          }
-        }
-      }
-      
-      // Show translation.
-      englishText.textContent = ayahWords[i].e;
-      
-      // Use stored measurements to compute effective right edge.
-      if (wordRightPositions.length >= ayahWords.length) {
-        let currentRight = wordRightPositions[i];
-        let nextRight = (i < wordRightPositions.length - 1) ? wordRightPositions[i+1] : currentRight;
-        let effectiveRight = currentRight + f * (nextRight - currentRight);
-        let screenCenter = window.innerWidth / 2;
-        let offset = screenCenter - effectiveRight;
-        arabicLine.style.transform = `translateX(${offset}px)`;
       }
       
       // Update index display.
@@ -542,64 +547,81 @@
       let wordIndexStr = String(i + 1).padStart(3, "0");
       indexDisplay.textContent = `Index: ${surahStr}:${ayahStr}:${wordIndexStr}`;
       
+      // Branch based on orientation:
+      // In landscape (width > height), build a full ayah sentence and use stored measurements;
+      // in portrait, display only the current word.
+      if (window.innerWidth > window.innerHeight) {
+        // Highlight the current word
+        for (let j = 0; j < ayahWords.length; j++) {
+          let wSpan = document.getElementById("word-" + j);
+          if (wSpan) {
+            if (j === i) {
+              wSpan.className = "arabic current";
+            } else {
+              wSpan.className = "arabic";
+            }
+          }
+        }
+        
+        // Use stored measurements from measureWordPositions
+        if (wordRightPositions.length > 0) {
+          const offsetPrepend = prevAyahLastWord ? 1 : 0;
+          let adjustedIndex = i + offsetPrepend;
+          
+          let currentRight = wordRightPositions[adjustedIndex];
+          let nextRight = (adjustedIndex < wordRightPositions.length - 1) 
+                         ? wordRightPositions[adjustedIndex+1] 
+                         : currentRight;
+                         
+          let effectiveRight = currentRight + f * (nextRight - currentRight);
+          let screenCenter = window.innerWidth / 2;
+          let offset = screenCenter - effectiveRight;
+          
+          // Apply the transform to the arabicLine
+          arabicLine.style.transform = `translateX(${offset}px)`;
+        }
+        
+        // Show the current word's translation.
+        englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
+      } else {
+        // Portrait mode: Display only the current word and its translation.
+        arabicText.innerHTML = ayahWords[i].c;
+        englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
+      }
+      
+      // Fading logic.
+      const fadeInDuration = 300;
+      const fadeOutDuration = 500;
+      let opacity = 1;
+      if (currentTimeMs < fadeInDuration) {
+        opacity = currentTimeMs / fadeInDuration;
+      }
+      if (audioPlayer.duration) {
+        let totalDurationMs = audioPlayer.duration * 1000;
+        if (currentTimeMs > totalDurationMs - fadeOutDuration) {
+          opacity = (totalDurationMs - currentTimeMs) / fadeOutDuration;
+        }
+      }
+      englishText.style.opacity = opacity;
+      
       requestAnimationFrame(updateDisplay);
     }
     
-    // Load surah names and update surah/ayah fields.
-    fetch(getSurahNamesPath())
-      .then(r => r.json())
-      .then(json => {
-        surahNames = json;
-        populateSurahSelect(surahNames);
-        if (urlSurah) {
-          surah = parseInt(urlSurah);
-          surahInput.value = surah;
-          const directMatch = surahNames.find(x => String(x["Surah Number"]) === String(surah));
-          if (directMatch) {
-            populateAyahSelect(directMatch["Surah Verses"]);
-          }
-          if (urlAyah) {
-            ayahSelect.value = urlAyah;
-          }
-        } else {
-          surah = 1;
-          surahInput.value = "1";
-          const directMatch = surahNames.find(x => String(x["Surah Number"]) === "1");
-          if (directMatch) {
-            populateAyahSelect(directMatch["Surah Verses"]);
-          }
-        }
-      })
-      .catch(err => console.error("Error loading surah names:", err));
-    
-    function populateSurahSelect(names) {
-      surahInput.innerHTML = "";
-      names.forEach(item => {
-        const opt = document.createElement("option");
-        opt.value = item["Surah Number"];
-        opt.text = item["Surah Number"] + ": " + item["Surah Name"];
-        surahInput.appendChild(opt);
-      });
-    }
-    
-    document.getElementById("playerForm").addEventListener("submit", function(e) {
-      e.preventDefault();
-      surah = parseInt(surahInput.value);
-      if (isNaN(surah)) {
-        alert("Please select a valid surah from the list.");
-        return;
+    // Handle orientation changes
+    window.addEventListener("resize", function() {
+      // Re-measure word positions if in landscape mode
+      if (window.innerWidth > window.innerHeight && document.getElementById("playerSection").style.display === "block") {
+        measureWordPositions();
       }
-      currentAyah = parseInt(ayahSelect.value);
-      updateURL();
-      document.getElementById("startScreen").style.display = "none";
-      document.getElementById("playerSection").style.display = "block";
+    });
     
-      requestAnimationFrame(() => {
-        loadPrevAyah(currentAyah);
-        loadSurahData(surah).then(() => {
-          playAyah(currentAyah);
-        });
-      });
+    window.addEventListener("orientationchange", function() {
+      setTimeout(function() {
+        // Re-measure word positions after orientation change
+        if (window.innerWidth > window.innerHeight && document.getElementById("playerSection").style.display === "block") {
+          measureWordPositions();
+        }
+      }, 300); // Wait for orientation change to complete
     });
   </script>
 </body>
