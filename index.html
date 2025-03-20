@@ -277,7 +277,7 @@
     let ayahWords = [];
     let lastDisplayedIndex = -1;
     let prevAyahLastWord = null;
-    let wordRightPositions = [];
+    // (Note: We no longer rely on stored wordRightPositions, since we remeasure dynamically.)
     
     const audioPlayer = document.getElementById("audioPlayer");
     const arabicText = document.getElementById("arabicText");
@@ -444,8 +444,7 @@
         audioPlayer.play();
         requestWakeLock();
         buildAyahLine();
-        measureWordPositions();
-        updateDisplay();
+        updateDisplay(); // Now updateDisplay does dynamic measurement each frame.
       };
       audioPlayer.onended = function() {
         if (data[String(ayah + 1)]) {
@@ -484,28 +483,12 @@
       endSymbol.innerHTML = "&#x06DD;";
       arabicLine.appendChild(endSymbol);
     
-      // Reset any previous transform and opacity
+      // Reset any previous transform and opacity.
       arabicLine.style.transform = "translateX(0px)";
       arabicLine.style.opacity = 1;
     }
     
-    // Measure each word's right edge, ignoring the end symbol.
-    function measureWordPositions() {
-      wordRightPositions = [];
-      for (let i = 0; i < ayahWords.length; i++) {
-        let wSpan = document.getElementById("word-" + i);
-        if (wSpan) {
-          let rect = wSpan.getBoundingClientRect();
-          let rightEdge = rect.left + rect.width;
-          wordRightPositions.push(rightEdge);
-        } else {
-          wordRightPositions.push(0);
-        }
-      }
-      // Do NOT include the end symbol in measurements.
-    }
-    
-    // Update display using stored measurements and dynamically switch between scrolling and one-word mode.
+    // Update display using dynamic measurement to compute the correct offset.
     function updateDisplay() {
       const currentTimeMs = audioPlayer.currentTime * 1000;
       
@@ -528,9 +511,10 @@
       let wordIndexStr = String(i + 1).padStart(3, "0");
       indexDisplay.textContent = `Index: ${surahStr}:${ayahStr}:${wordIndexStr}`;
       
-      // Branch based on orientation: landscape auto-scroll full ayah; portrait show only current word.
+      // Branch based on orientation:
+      // In landscape (width > height), build a full ayah sentence and measure dynamically;
+      // in portrait, display only the current word.
       if (window.innerWidth > window.innerHeight) {
-        // Landscape mode: Build the full ayah sentence.
         let sentenceParts = [];
         const offsetPrepend = prevAyahLastWord ? 1 : 0;
         if (prevAyahLastWord) {
@@ -561,7 +545,7 @@
         temp.style.width = containerWidth + "px";
         temp.innerHTML = sentenceHTML;
         
-        // Append the temporary container to fixedArabic for proper measurement.
+        // Append the temporary container to fixedArabic so measurements reflect the current context.
         const fixedArabic = document.getElementById("fixedArabic");
         fixedArabic.appendChild(temp);
         
@@ -589,9 +573,9 @@
         const offset = containerCenter - effectiveRight;
         fixedArabic.removeChild(temp);
         
-        // Render full ayah with the calculated offset.
+        // Render the full ayah sentence with the calculated offset.
         arabicText.innerHTML = `<div style="white-space:nowrap;text-align:center;transform:translateX(${offset}px);">${sentenceHTML}</div>`;
-        // Display the current word's translation.
+        // Show the current word's translation.
         englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
       } else {
         // Portrait mode: Display only the current word and its translation.
@@ -600,8 +584,8 @@
       }
       
       // Fading logic.
-      const fadeInDuration = 300;   // 300ms fade in.
-      const fadeOutDuration = 500;  // 500ms fade out.
+      const fadeInDuration = 300;
+      const fadeOutDuration = 500;
       let opacity = 1;
       if (currentTimeMs < fadeInDuration) {
         opacity = currentTimeMs / fadeInDuration;
@@ -613,7 +597,6 @@
         }
       }
       englishText.style.opacity = opacity;
-      // (Note: In landscape mode, the arabicText content is wrapped in a div so its opacity can be controlled via CSS if needed.)
       
       requestAnimationFrame(updateDisplay);
     }
