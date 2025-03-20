@@ -481,9 +481,9 @@
       endSymbol.innerHTML = "&#x06DD;";
       arabicLine.appendChild(endSymbol);
       
-      // Reset transform and opacity.
+      // Reset transform and set starting opacity to 0 for fade-in.
       arabicLine.style.transform = "translateX(0px)";
-      arabicLine.style.opacity = 1;
+      arabicLine.style.opacity = 0;
     }
     
     // Measure each word's right edge position.
@@ -585,8 +585,13 @@
         if (currentTimeMs > totalDurationMs - fadeOutDuration) {
           opacity = (totalDurationMs - currentTimeMs) / fadeOutDuration;
         }
+        // Ensure the last 100ms of audio have 0 opacity.
+        if (totalDurationMs - currentTimeMs < 100) {
+          opacity = 0;
+        }
       }
       englishText.style.opacity = opacity;
+      arabicLine.style.opacity = opacity;
       
       requestAnimationFrame(updateDisplay);
     }
