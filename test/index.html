@@ -253,7 +253,7 @@
     </div>
   </div>
   <script>
-    // Add back the author update and automatic version stamp.
+    // Author update and version stamp.
     const AUTHOR_UPDATE = "Notes: Rotate to activate autoscrolling. Control playback speed via triple dot menu. Licence: Data from VerseByVerseQuran.com, kindly send feedback to info@onewordquran.com, may Allah bless the contributors";
     const modifiedDate = new Date(document.lastModified);
     const versionText = "Version: " + modifiedDate.toLocaleDateString("en-AU") + " " + modifiedDate.toLocaleTimeString("en-AU");
@@ -343,7 +343,7 @@
       }
     }
     
-    // NEW: Update ayah selection when surah selection changes.
+    // Update ayah selection when surah selection changes.
     surahInput.addEventListener("change", function() {
       const selectedSurah = parseInt(surahInput.value);
       const directMatch = surahNames.find(x => String(x["Surah Number"]) === String(selectedSurah));
@@ -488,12 +488,11 @@
       arabicLine.style.opacity = 1;
     }
     
-    // Added from Code B: Measure each word's right edge position
+    // Measure each word's right edge position.
     function measureWordPositions() {
       wordRightPositions = [];
       const offsetPrepend = prevAyahLastWord ? 1 : 0;
       
-      // If we have a prepended word from previous ayah, measure it
       if (prevAyahLastWord) {
         let prependSpan = document.getElementById("word-prepend");
         if (prependSpan) {
@@ -503,7 +502,6 @@
         }
       }
       
-      // Measure each word in the current ayah
       for (let i = 0; i < ayahWords.length; i++) {
         let wSpan = document.getElementById("word-" + i);
         if (wSpan) {
@@ -515,7 +513,6 @@
         }
       }
       
-      // Also measure the end symbol
       let endSymbol = document.getElementById("word-end");
       if (endSymbol) {
         let rect = endSymbol.getBoundingClientRect();
@@ -524,79 +521,62 @@
       }
     }
     
-    // >>>>>>> MINIMAL FIX BELOW (rebuild line if we've overwritten it in portrait)
+    // Minimal fix: Ensure that when switching from portrait to landscape,
+    // the full ayah line is available for scrolling.
     function updateDisplay() {
-      // If we are now in landscape, but #arabicLine is missing or empty (because portrait overwrote it),
-      // then rebuild and re-measure so we can scroll again.
+      // When in landscape but #arabicLine is empty (portrait branch overwrote its contents),
+      // rebuild and re-measure.
       if (window.innerWidth > window.innerHeight) {
-        const lineEl = document.getElementById("arabicLine");
-        if (!lineEl || lineEl.innerHTML.trim() === "") {
+        if (!arabicLine || arabicLine.innerHTML.trim() === "") {
           buildAyahLine();
           measureWordPositions();
         }
       }
-      // >>>>>>> Everything else below is unchanged:
       
       const currentTimeMs = audioPlayer.currentTime * 1000;
       
-      // Determine current word index i.
       let i = 0;
       for (; i < ayahWords.length - 1; i++) {
         if (currentTimeMs < ayahWords[i+1].scheduledTime) break;
       }
       
-      // Calculate fraction f between words.
       let f = 0;
       if (i < ayahWords.length - 1) {
         f = (currentTimeMs - ayahWords[i].scheduledTime) / (ayahWords[i+1].scheduledTime - ayahWords[i].scheduledTime);
         f = Math.max(0, Math.min(1, f));
       }
       
-      // Update index display.
       let surahStr = String(surah).padStart(3, "0");
       let ayahStr = String(currentAyah).padStart(3, "0");
       let wordIndexStr = String(i + 1).padStart(3, "0");
       indexDisplay.textContent = `Index: ${surahStr}:${ayahStr}:${wordIndexStr}`;
       
-      // Branch based on orientation:
-      // In landscape (width > height), build a full ayah sentence and use stored measurements;
-      // in portrait, display only the current word.
       if (window.innerWidth > window.innerHeight) {
-        // Highlight the current word
+        // Landscape mode: full ayah sentence with scrolling.
         for (let j = 0; j < ayahWords.length; j++) {
           let wSpan = document.getElementById("word-" + j);
           if (wSpan) {
-            if (j === i) {
-              wSpan.className = "arabic current";
-            } else {
-              wSpan.className = "arabic";
-            }
+            wSpan.className = (j === i) ? "arabic current" : "arabic";
           }
         }
         
-        // Use stored measurements from measureWordPositions
         if (wordRightPositions.length > 0) {
           const offsetPrepend = prevAyahLastWord ? 1 : 0;
           let adjustedIndex = i + offsetPrepend;
           
           let currentRight = wordRightPositions[adjustedIndex];
-          let nextRight = (adjustedIndex < wordRightPositions.length - 1) 
-                         ? wordRightPositions[adjustedIndex+1] 
-                         : currentRight;
-                         
+          let nextRight = (adjustedIndex < wordRightPositions.length - 1) ? wordRightPositions[adjustedIndex+1] : currentRight;
           let effectiveRight = currentRight + f * (nextRight - currentRight);
           let screenCenter = window.innerWidth / 2;
           let offset = screenCenter - effectiveRight;
           
-          // Apply the transform to the arabicLine
           arabicLine.style.transform = `translateX(${offset}px)`;
         }
         
-        // Show the current word's translation.
         englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
       } else {
-        // Portrait mode: Display only the current word and its translation.
-        arabicText.innerHTML = ayahWords[i].c;
+        // Portrait mode: update only the text of the existing #arabicLine.
+        arabicLine.textContent = ayahWords[i].c;
         englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
       }
       
@@ -618,9 +598,8 @@
       requestAnimationFrame(updateDisplay);
     }
     
-    // Handle orientation changes
+    // Handle orientation changes: re-measure positions in landscape.
     window.addEventListener("resize", function() {
-      // Re-measure word positions if in landscape mode
       if (window.innerWidth > window.innerHeight && document.getElementById("playerSection").style.display === "block") {
         measureWordPositions();
       }
@@ -628,11 +607,10 @@
     
     window.addEventListener("orientationchange", function() {
       setTimeout(function() {
-        // Re-measure word positions after orientation change
         if (window.innerWidth > window.innerHeight && document.getElementById("playerSection").style.display === "block") {
           measureWordPositions();
         }
-      }, 300); // Wait for orientation change to complete
+      }, 300);
     });
   </script>
 </body>
