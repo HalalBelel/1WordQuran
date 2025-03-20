@@ -524,7 +524,7 @@
       }
     }
     
-    // Update display using dynamic measurement or stored positions depending on orientation
+    // Update display using dynamic measurement to compute the correct offset
     function updateDisplay() {
       const currentTimeMs = audioPlayer.currentTime * 1000;
       
@@ -548,17 +548,25 @@
       indexDisplay.textContent = `Index: ${surahStr}:${ayahStr}:${wordIndexStr}`;
       
       // Branch based on orientation:
-      // In landscape (width > height), build a full ayah sentence and use stored measurements;
+      // In landscape (width > height), build a full ayah sentence and measure dynamically;
       // in portrait, display only the current word.
       if (window.innerWidth > window.innerHeight) {
+        // Rebuild the ayah line if we're coming from portrait mode
+        if (arabicLine.innerHTML === "") {
+          buildAyahLine();
+          measureWordPositions();
+        }
+        
         // Highlight the current word
         for (let j = 0; j < ayahWords.length; j++) {
           let wSpan = document.getElementById("word-" + j);
           if (wSpan) {
             if (j === i) {
               wSpan.className = "arabic current";
+              wSpan.style.color = "#000"; // Ensure current word is black
             } else {
               wSpan.className = "arabic";
+              wSpan.style.color = "#999"; // Ensure other words are grey
             }
           }
         }
@@ -574,8 +582,9 @@
                          : currentRight;
                          
           let effectiveRight = currentRight + f * (nextRight - currentRight);
-          let screenCenter = window.innerWidth / 2;
-          let offset = screenCenter - effectiveRight;
+          let fixedArabicRect = document.getElementById("fixedArabic").getBoundingClientRect();
+          let containerCenter = fixedArabicRect.left + fixedArabicRect.width / 2;
+          let offset = containerCenter - effectiveRight;
           
           // Apply the transform to the arabicLine
           arabicLine.style.transform = `translateX(${offset}px)`;
@@ -585,7 +594,8 @@
         englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
       } else {
         // Portrait mode: Display only the current word and its translation.
-        arabicText.innerHTML = ayahWords[i].c;
+        // Make the Arabic text black in portrait mode
+        arabicText.innerHTML = `<span style="color:#000;">${ayahWords[i].c}</span>`;
         englishText.innerHTML = `<div style="text-align:center;">${ayahWords[i].e}</div>`;
       }
       
@@ -611,6 +621,10 @@
     window.addEventListener("resize", function() {
       // Re-measure word positions if in landscape mode
       if (window.innerWidth > window.innerHeight && document.getElementById("playerSection").style.display === "block") {
+        // Rebuild ayah line if it's empty (coming from portrait mode)
+        if (arabicLine.innerHTML === "") {
+          buildAyahLine();
+        }
         measureWordPositions();
       }
     });
@@ -619,6 +633,10 @@
       setTimeout(function() {
         // Re-measure word positions after orientation change
         if (window.innerWidth > window.innerHeight && document.getElementById("playerSection").style.display === "block") {
+          // Rebuild ayah line if it's empty (coming from portrait mode)
+          if (arabicLine.innerHTML === "") {
+            buildAyahLine();
+          }
           measureWordPositions();
         }
       }, 300); // Wait for orientation change to complete
