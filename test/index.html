@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <!-- Ensure proper scaling on mobile devices -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OneWordQuran Player – L-to-R Hard Fade at Center (Right-Side Trigger)</title>
+  <title>OneWordQuran Player – L-to-R Hard Fade at Center</title>
   <style>
     :root {
       --control-height: 60px;
@@ -30,7 +30,7 @@
       height: 100%;
       padding-top: 20px;
     }
-    /* Start screen & form */
+    /* Start Screen & Form */
     #startScreen {
       position: relative;
       margin-top: 10px;
@@ -149,7 +149,7 @@
       flex: 1;
       text-align: right;
     }
-    /* Fixed Arabic container */
+    /* Fixed Arabic Container */
     #fixedArabic {
       position: fixed;
       top: 20vh;
@@ -160,7 +160,7 @@
       pointer-events: none;
       overflow: visible;
     }
-    /* Scrolling text container */
+    /* Scrolling text layer */
     #arabicText {
       position: relative;
       width: 100%;
@@ -168,7 +168,7 @@
     }
     #arabicLine {
       position: absolute;
-      height: 1em;
+      height: 1em; /* enough for the text */
     }
     .arabicWord {
       position: absolute;
@@ -185,7 +185,7 @@
       color: #000;
       font-weight: bold;
     }
-    /* Current word overlay – its left edge is pinned at the center */
+    /* Current word overlay – its left edge is fixed at center */
     #currentWordOverlay {
       position: absolute;
       top: 0;
@@ -268,7 +268,7 @@
         <div id="arabicText">
           <div id="arabicLine"></div>
         </div>
-        <!-- Top layer: current word overlay (its left edge is fixed at center) -->
+        <!-- Top overlay: current word pinned so its left edge is at center -->
         <div id="currentWordOverlay"></div>
       </div>
       <div id="translationContainer">
@@ -279,7 +279,7 @@
 
   <script>
     // Version info
-    const AUTHOR_UPDATE = "Notes: L-to-R scrolling with hard fade triggered by word's left side and overlay update when next word passes center. Feedback: info@onewordquran.com";
+    const AUTHOR_UPDATE = "Notes: L-to-R scrolling with hard fade triggered when scrolling word’s left edge hits center. Overlay hides when next word’s right edge reaches center. Feedback: info@onewordquran.com";
     const modifiedDate = new Date(document.lastModified);
     const versionText = "Version: " + modifiedDate.toLocaleDateString("en-AU") + " " + modifiedDate.toLocaleTimeString("en-AU");
     document.getElementById("versionInfo").textContent = versionText;
@@ -298,10 +298,10 @@
     let surahNames = [];
     let currentAyah = 0;
     let surah = 0;
-    let ayahWords = []; // Each word: {scheduledTime, c, e, index}
+    let ayahWords = []; // {scheduledTime, c, e, index}
     let prevAyahLastWord = null;
 
-    // Constant scroll speed (px/ms)
+    // Constant scroll speed (pixels per ms)
     const scrollSpeed = 0.2;
 
     // DOM references
@@ -313,15 +313,13 @@
     const surahInput = document.getElementById("surahInput");
     const ayahSelect = document.getElementById("ayahSelect");
 
-    // Wake lock
+    // Wake Lock
     let wakeLock = null;
     async function requestWakeLock() {
       if ("wakeLock" in navigator) {
         try {
           wakeLock = await navigator.wakeLock.request("screen");
-          wakeLock.addEventListener("release", () => {
-            console.log("WakeLock released");
-          });
+          wakeLock.addEventListener("release", () => console.log("WakeLock released"));
           console.log("WakeLock active");
         } catch(err) {
           console.error(err);
@@ -350,7 +348,7 @@
       history.replaceState(null, "", newUrl);
     }
 
-    // Populate surah and ayah selects
+    // Populate selects
     function populateSurahSelect(names) {
       surahInput.innerHTML = "";
       names.forEach(item => {
@@ -372,9 +370,7 @@
     surahInput.addEventListener("change", function() {
       const sNum = parseInt(surahInput.value);
       const match = surahNames.find(x => String(x["Surah Number"]) === String(sNum));
-      if (match) {
-        populateAyahSelect(match["Surah Verses"]);
-      }
+      if (match) populateAyahSelect(match["Surah Verses"]);
     });
 
     // Load surah names
@@ -387,12 +383,8 @@
           surah = parseInt(urlSurah);
           surahInput.value = surah;
           const match = surahNames.find(x => String(x["Surah Number"]) === String(surah));
-          if (match) {
-            populateAyahSelect(match["Surah Verses"]);
-          }
-          if (urlAyah) {
-            ayahSelect.value = urlAyah;
-          }
+          if (match) populateAyahSelect(match["Surah Verses"]);
+          if (urlAyah) ayahSelect.value = urlAyah;
         } else {
           surah = 1;
           surahInput.value = "1";
@@ -402,7 +394,7 @@
       })
       .catch(err => console.error("Error loading surah names:", err));
 
-    // On form submit
+    // Form submit handler
     document.getElementById("playerForm").addEventListener("submit", function(e) {
       e.preventDefault();
       surah = parseInt(surahInput.value);
@@ -416,9 +408,7 @@
       document.getElementById("playerSection").style.display = "block";
 
       loadPrevAyah(currentAyah);
-      loadSurahData(surah).then(() => {
-        playAyah(currentAyah);
-      });
+      loadSurahData(surah).then(() => playAyah(currentAyah));
     });
 
     function loadPrevAyah(ayah) {
@@ -426,9 +416,8 @@
         fetch(getJsonPath(ayah - 1))
           .then(r => r.json())
           .then(prevData => {
-            if (prevData && prevData["w"] && prevData["w"].length > 0) {
+            if (prevData && prevData["w"] && prevData["w"].length > 0)
               prevAyahLastWord = prevData["w"][prevData["w"].length - 1];
-            }
           })
           .catch(err => console.error("Error loading prev ayah:", err));
       } else {
@@ -445,10 +434,10 @@
       }
     }
 
-    // Build the scrolling line of words.
+    // Build scrolling line of words
     function buildAyahLine() {
       arabicLine.innerHTML = "";
-      // Optionally add last word from previous ayah
+      // Optionally add previous ayah's last word
       if (prevAyahLastWord) {
         const sp = document.createElement("span");
         sp.className = "arabicWord";
@@ -473,7 +462,7 @@
       endSymbol.className = "arabicWord";
       endSymbol.style.color = "#999";
       endSymbol.id = "word-end";
-      endSymbol.dataset.scheduledTime = ayahWords.length 
+      endSymbol.dataset.scheduledTime = ayahWords.length
         ? ayahWords[ayahWords.length - 1].scheduledTime + 500
         : 0;
       endSymbol.innerHTML = "&#x06DD;";
@@ -482,7 +471,7 @@
       requestAnimationFrame(layoutWords);
     }
 
-    // Position each word so that at time = scheduledTime its RIGHT edge is at center.
+    // Layout: position each word so that at T = scheduledTime, its RIGHT edge aligns with screen center.
     function layoutWords() {
       const centerX = window.innerWidth / 2;
       Array.from(arabicLine.children).forEach(el => {
@@ -498,25 +487,24 @@
       const currentTimeMs = audioPlayer.currentTime * 1000;
 
       if (window.innerWidth > window.innerHeight) {
-        // LANDSCAPE: continuous scrolling
+        // Continuous scrolling: translate rightward
         const offset = scrollSpeed * currentTimeMs;
         arabicLine.style.transform = `translateX(${offset}px)`;
 
-        // Determine current word index based on scheduledTime
+        // Determine current word index (the last word with scheduledTime <= currentTime)
         let currIdx = -1;
         for (let i = 0; i < ayahWords.length; i++) {
-          if (currentTimeMs >= ayahWords[i].scheduledTime) {
-            currIdx = i;
-          } else break;
+          if (currentTimeMs >= ayahWords[i].scheduledTime) currIdx = i;
+          else break;
         }
-        // Highlight current word in scrolling line
+        // Highlight current word in scrolling layer
         for (let i = 0; i < ayahWords.length; i++) {
           const wSpan = document.getElementById("word-" + i);
           if (wSpan) {
             wSpan.className = (i === currIdx) ? "arabicWord current" : "arabicWord";
           }
         }
-        // Update index and translation displays
+        // Update index & translation displays
         const surahStr = String(surah).padStart(3, "0");
         const ayahStr = String(currentAyah).padStart(3, "0");
         const idxStr = (currIdx >= 0) ? String(currIdx + 1).padStart(3, "0") : "000";
@@ -525,37 +513,31 @@
           englishText.innerHTML = `<div style="text-align:center;">${ayahWords[currIdx].e}</div>`;
         }
 
-        // Set the current word overlay (it always stays with its left edge at center)
+        // Set current word overlay (its left edge remains fixed at center)
         if (currIdx >= 0) {
           currentWordOverlay.textContent = ayahWords[currIdx].c;
         } else {
           currentWordOverlay.textContent = "";
         }
 
-        // --- Hard fade for scrolling text ---
-        // For each word in the scrolling line (excluding prepend/end), hide it once its LEFT edge crosses center.
+        // --- Hard fade: hide a scrolling word as soon as its LEFT edge reaches center.
         const centerX = window.innerWidth / 2;
         Array.from(arabicLine.children).forEach(el => {
           if (el.id === "word-prepend" || el.id === "word-end") return;
           const rect = el.getBoundingClientRect();
-          // Visible only if its left edge is to the right of center.
-          el.style.opacity = (rect.left > centerX) ? "1" : "0";
+          // Show the word only if its left edge is strictly to the left of center.
+          el.style.opacity = (rect.left < centerX) ? "1" : "0";
         });
 
-        // --- Overlay collision logic ---
-        // Look at the NEXT word (if any) and check its boundaries.
+        // --- Overlay collision: if the next word’s RIGHT edge is at or to the left of center,
+        // hide the overlay so the next word takes over.
         if (currIdx < ayahWords.length - 1) {
           const nextElem = document.getElementById("word-" + (currIdx + 1));
           if (nextElem) {
             const nextRect = nextElem.getBoundingClientRect();
-            // If the next word's RIGHT edge is at or beyond center, hide the overlay.
             if (nextRect.right <= centerX) {
               currentWordOverlay.style.opacity = "0";
-            }
-            // Then, once the next word's LEFT edge has passed (i.e. is to the left of) center,
-            // update the overlay with the next word and show it.
-            if (nextRect.left <= centerX) {
-              currentWordOverlay.textContent = nextElem.textContent;
+            } else {
               currentWordOverlay.style.opacity = "1";
             }
           }
@@ -563,13 +545,12 @@
           currentWordOverlay.style.opacity = "1";
         }
       } else {
-        // PORTRAIT: simple one-word display
+        // Portrait: simple one-word display
         arabicLine.style.transform = "none";
         let currIdx = -1;
         for (let i = 0; i < ayahWords.length; i++) {
-          if (currentTimeMs >= ayahWords[i].scheduledTime) {
-            currIdx = i;
-          } else break;
+          if (currentTimeMs >= ayahWords[i].scheduledTime) currIdx = i;
+          else break;
         }
         if (currIdx >= 0) {
           arabicLine.textContent = ayahWords[currIdx].c;
@@ -585,21 +566,21 @@
         currentWordOverlay.textContent = "";
       }
 
-      // Fade translation & scrolling in/out near start/end of audio.
+      // Fade in/out translation & overall opacity near start/end of audio.
       const fadeInDuration = 300;
       const fadeOutDuration = 500;
-      let opacity = 1;
+      let overallOpacity = 1;
       if (currentTimeMs < fadeInDuration) {
-        opacity = currentTimeMs / fadeInDuration;
+        overallOpacity = currentTimeMs / fadeInDuration;
       }
       if (audioPlayer.duration) {
         const totalMs = audioPlayer.duration * 1000;
         if (currentTimeMs > totalMs - fadeOutDuration) {
-          opacity = (totalMs - currentTimeMs) / fadeOutDuration;
+          overallOpacity = (totalMs - currentTimeMs) / fadeOutDuration;
         }
       }
-      englishText.style.opacity = opacity;
-      document.getElementById("arabicText").style.opacity = opacity;
+      englishText.style.opacity = overallOpacity;
+      document.getElementById("arabicText").style.opacity = overallOpacity;
 
       requestAnimationFrame(updateDisplay);
     }
@@ -609,7 +590,7 @@
       updateURL();
       const ayahData = data[String(ayah)];
       if (!ayahData) return;
-      // Convert each word's 'b' value (start time) to milliseconds.
+      // Convert each word's 'b' value to milliseconds.
       ayahWords = ayahData["w"].map((w, i) => ({
         scheduledTime: parseFloat(w["b"]) * 1000,
         c: w["c"],
