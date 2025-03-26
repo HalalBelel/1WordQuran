@@ -540,7 +540,7 @@
         Array.from(arabicLine.children).forEach(el => {
           if (el.id === "word-prepend" || el.id === "word-end") return;
           const rect = el.getBoundingClientRect();
-          if (rect.left >= centerX) {
+          if (rect.right >= centerX) {
             el.style.opacity = "0";
           } else {
             el.style.opacity = "1";
