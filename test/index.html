@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <!-- Ensure proper scaling on mobile devices -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OneWordQuran Player - Stepped Scrolling Mode</title>
+  <title>OneWordQuran Player - Stepped Scrolling (Left-to-Right)</title>
   <style>
     :root {
       --control-height: 60px;
@@ -152,7 +152,7 @@
       flex: 1;
       text-align: right;
     }
-    /* Fixed Arabic container – in landscape mode we now use two layers */
+    /* Fixed Arabic container – in landscape mode we use two layers */
     #fixedArabic {
       position: fixed;
       top: 20vh;
@@ -163,13 +163,13 @@
       pointer-events: none;
       overflow: visible;
     }
-    /* The display for the “current” word (which stays centered) */
+    /* The display for the “current” word (which will be fixed with its left edge at center) */
     #currentWordDisplay {
       position: absolute;
       top: 0;
       z-index: 2;
     }
-    /* The container holding upcoming words (which will scroll until collision) */
+    /* The container holding upcoming words (which scroll from left) */
     #upcomingContainer {
       position: absolute;
       top: 0;
@@ -211,7 +211,7 @@
         flex-direction: column;
       }
     }
-    /* Portrait mode override: Make Arabic text black */
+    /* Portrait mode override: simpler one-word display */
     @media (orientation: portrait) {
       #fixedArabic {
         transform: none;
@@ -253,9 +253,9 @@
         <div id="indexDisplay"></div>
       </div>
       <div id="fixedArabic">
-        <!-- The “current” word will be placed here (fixed in center) -->
+        <!-- The “current” word (fixed with its left edge at center) -->
         <div id="currentWordDisplay" class="arabic"></div>
-        <!-- The upcoming words (which will scroll beneath the current word) -->
+        <!-- Upcoming words container -->
         <div id="upcomingContainer"></div>
       </div>
       <div id="translationContainer">
@@ -265,7 +265,7 @@
   </div>
   <script>
     // Version and update info.
-    const AUTHOR_UPDATE = "Notes: Rotate to activate stepped scrolling. Control playback speed via triple dot menu. Licence: Data from VerseByVerseQuran.com. Feedback: info@onewordquran.com";
+    const AUTHOR_UPDATE = "Notes: Rotate to activate stepped scrolling (left-to-right). Control playback speed via triple dot menu. Licence: Data from VerseByVerseQuran.com. Feedback: info@onewordquran.com";
     const modifiedDate = new Date(document.lastModified);
     const versionText = "Version: " + modifiedDate.toLocaleDateString("en-AU") + " " + modifiedDate.toLocaleTimeString("en-AU");
     document.getElementById("versionInfo").textContent = versionText;
@@ -286,17 +286,17 @@
     let surah = 0;
     let ayahWords = []; // Each word: {scheduledTime, c, e, index}
     
-    // --- New variables for stepped scrolling ---
-    // Two modes: "continuous" (before first word is active) and "frozen" (current word fixed)
+    // --- Variables for stepped scrolling (left-to-right) ---
+    // Modes: "continuous" (words scroll continuously) and "frozen" (current word fixed)
     let mode = "continuous";
-    let freezeOffset = 0;  // upcomingContainer’s transform offset at the moment of freezing
-    let delta = 0;         // additional offset (in pixels) applied in frozen mode
+    let freezeOffset = 0; // The transform offset of upcomingContainer at the moment of freezing
+    let delta = 0;        // Additional offset applied in frozen mode
     let lastFrameTime = null;
-    let currentWordIndex = -1; // index of the current (active) word
+    let currentWordIndex = -1;
     
     // Constants (adjust as needed)
-    const scrollSpeed = 0.1;      // For continuous scrolling: pixels per millisecond (e.g. 0.1 → 100px/sec)
-    const stepScrollSpeed = 0.1;  // In frozen mode: additional pixels per millisecond to move upcoming words
+    const scrollSpeed = 0.1;      // Continuous mode: pixels per millisecond (e.g. 0.1 → 100px/sec)
+    const stepScrollSpeed = 0.1;  // Frozen mode: additional pixels per millisecond
     
     // DOM references
     const audioPlayer = document.getElementById("audioPlayer");
@@ -448,7 +448,7 @@
       audioPlayer.src = remoteBaseUrl + surahStr + ayahStr + ".mp3";
       audioPlayer.load();
       audioPlayer.oncanplaythrough = function() {
-        // Build the word containers for landscape mode.
+        // In landscape mode, build the word containers.
         if (window.innerWidth > window.innerHeight) {
           buildWordContainers();
         }
@@ -463,7 +463,7 @@
       };
     }
     
-    // Build the upcoming word container (all words are added there).
+    // Build the upcoming container – add each word as an absolutely positioned span.
     function buildWordContainers() {
       currentWordDisplay.innerHTML = "";
       upcomingContainer.innerHTML = "";
@@ -478,26 +478,27 @@
         let space = document.createTextNode(" ");
         upcomingContainer.appendChild(space);
       });
-      // Layout the words based on their scheduled times.
+      // Layout the upcoming words.
       requestAnimationFrame(layoutUpcomingWords);
     }
     
-    // Position each upcoming word so that in continuous mode its right edge would reach the center at its scheduled time.
+    // Layout upcoming words for left-to-right continuous mode.
+    // We want each word’s left edge to arrive at the center (screenCenter) at its scheduled time.
     function layoutUpcomingWords() {
       const screenCenter = window.innerWidth / 2;
       Array.from(upcomingContainer.children).forEach(el => {
         if (el.nodeType === Node.ELEMENT_NODE) {
           let s = parseFloat(el.dataset.scheduledTime);
-          let width = el.offsetWidth;
-          let left = screenCenter + scrollSpeed * s - width;
+          // With upcomingContainer's transform = translateX(scrollSpeed * currentTime),
+          // setting initial left = screenCenter - scrollSpeed * s makes the effective left edge = screenCenter at t = s.
           el.style.position = "absolute";
-          el.style.left = left + "px";
+          el.style.left = (screenCenter - scrollSpeed * s) + "px";
           el.style.top = "0px";
         }
       });
     }
     
-    // Update displays for translation and index based on currentWordIndex.
+    // Update text displays for index and translation.
     function updateTextDisplays() {
       let surahStr = String(surah).padStart(3, "0");
       let ayahStr = String(currentAyah).padStart(3, "0");
@@ -518,62 +519,58 @@
       if (window.innerWidth > window.innerHeight) {
         // Landscape mode.
         if (mode === "continuous") {
-          // In continuous mode, scroll based on audio time.
+          // In continuous mode, upcomingContainer moves to the right at a constant rate.
           let currentTimeMs = audioPlayer.currentTime * 1000;
-          let offset = -scrollSpeed * currentTimeMs;
+          let offset = scrollSpeed * currentTimeMs;
           upcomingContainer.style.transform = `translateX(${offset}px)`;
-          // Check if it’s time to freeze (i.e. the first upcoming word’s scheduled time has passed).
-          if (upcomingContainer.firstElementChild) {
+          // When the audio time reaches the scheduled time of the first upcoming word,
+          // transition to frozen mode.
+          if (upcomingContainer.firstElementChild && upcomingContainer.firstElementChild.nodeType === Node.ELEMENT_NODE) {
             let nextScheduled = parseFloat(upcomingContainer.firstElementChild.dataset.scheduledTime);
             if (currentTimeMs >= nextScheduled) {
-              // Transition to frozen mode.
               mode = "frozen";
               freezeOffset = offset;
               delta = 0;
-              // Remove the first word from upcomingContainer and place it in currentWordDisplay.
+              // Remove the first word from upcomingContainer and place it into currentWordDisplay.
               let currentElem = upcomingContainer.firstElementChild;
               currentWordDisplay.innerHTML = "";
               currentWordDisplay.appendChild(currentElem);
-              // Center the current word.
+              // In left-to-right mode, fix the current word so its left edge is at screen center.
               requestAnimationFrame(() => {
-                let cw = currentWordDisplay.offsetWidth;
-                currentWordDisplay.style.left = (screenCenter - cw) + "px";
+                currentWordDisplay.style.left = screenCenter + "px";
               });
               currentWordIndex = parseInt(currentElem.dataset.index) || 0;
               updateTextDisplays();
             }
           }
         } else if (mode === "frozen") {
-          // In frozen mode, the current word stays fixed.
+          // In frozen mode, currentWordDisplay stays fixed.
           // Animate upcomingContainer by increasing delta.
           delta += stepScrollSpeed * dt;
-          upcomingContainer.style.transform = `translateX(${freezeOffset - delta}px)`;
-          // Check collision: if the next word’s right edge touches the current word’s left edge.
-          if (upcomingContainer.firstElementChild) {
+          upcomingContainer.style.transform = `translateX(${freezeOffset + delta}px)`;
+          // Collision check: when the first upcoming word's left edge reaches the current word's right edge.
+          if (upcomingContainer.firstElementChild && upcomingContainer.firstElementChild.nodeType === Node.ELEMENT_NODE) {
             let currentRect = currentWordDisplay.getBoundingClientRect();
             let nextRect = upcomingContainer.firstElementChild.getBoundingClientRect();
-            if (nextRect.right <= currentRect.left) {
-              // Transition: move the next word to become the current word.
+            // For left-to-right, if next word's left edge >= current word's right edge, switch.
+            if (nextRect.left >= currentRect.right) {
               let nextElem = upcomingContainer.firstElementChild;
               currentWordDisplay.innerHTML = "";
               currentWordDisplay.appendChild(nextElem);
               requestAnimationFrame(() => {
-                let cw = currentWordDisplay.offsetWidth;
-                currentWordDisplay.style.left = (screenCenter - cw) + "px";
+                currentWordDisplay.style.left = screenCenter + "px";
               });
               currentWordIndex = parseInt(nextElem.dataset.index) || (currentWordIndex + 1);
-              // Reset the frozen base offset.
-              freezeOffset = freezeOffset - delta;
+              // Reset the frozen offset.
+              freezeOffset = freezeOffset + delta;
               delta = 0;
               updateTextDisplays();
             }
           }
         }
       } else {
-        // Portrait mode: fallback to a simple behavior.
-        // Here we simply show the current word based on audio time (similar to previous versions).
+        // Portrait mode: fallback to simpler behavior.
         let currentTimeMs = audioPlayer.currentTime * 1000;
-        // Find the latest word whose scheduled time is <= currentTimeMs.
         let idx = -1;
         for (let i = 0; i < ayahWords.length; i++) {
           if (currentTimeMs >= ayahWords[i].scheduledTime) {
