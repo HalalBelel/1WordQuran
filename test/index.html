@@ -163,14 +163,19 @@
       pointer-events: none;
       overflow: visible;
     }
-    /* Arabic text container: now using absolute positioning for each word */
+    /* Arabic text container */
     #arabicText {
-      position: relative;
+      display: inline-block;
+      white-space: nowrap;
       pointer-events: none;
     }
-    /* The container for the entire ayah line. Each word will be absolutely positioned. */
+    /* Entire ayah line container with fade transition */
     #arabicLine {
+      display: inline-block;
+      white-space: nowrap;
       position: relative;
+      transform: translateX(0px);
+      transition: opacity 0.5s ease;
     }
     .arabic {
       font-family: "Courier New", monospace;
@@ -179,6 +184,7 @@
       text-align: center;
       pointer-events: none;
       color: #999;
+      margin: 0;
     }
     .arabic.current {
       color: #000;
@@ -219,7 +225,6 @@
     <!-- Start Screen -->
     <div id="startScreen">
       <h1>OneWordQuran Player v3</h1>
-      <!-- Author notes and version stamp are added here -->
       <div id="versionInfo"></div>
       <form id="playerForm">
         <div class="form-row">
@@ -253,8 +258,8 @@
     </div>
   </div>
   <script>
-    // Author update and version stamp.
-    const AUTHOR_UPDATE = "Notes: Rotate to activate autoscrolling. Control playback speed via triple dot menu. Licence: Data from VerseByVerseQuran.com, kindly send feedback to info@onewordquran.com, may Allah bless the contributors";
+    // Version info and update note.
+    const AUTHOR_UPDATE = "Notes: Rotate to activate autoscrolling. Licence: Data from VerseByVerseQuran.com. Feedback: info@onewordquran.com";
     const modifiedDate = new Date(document.lastModified);
     const versionText = "Version: " + modifiedDate.toLocaleDateString("en-AU") + " " + modifiedDate.toLocaleTimeString("en-AU");
     document.getElementById("versionInfo").textContent = versionText;
@@ -269,18 +274,15 @@
       return isTest ? `../json/surahnames.json` : `json/surahnames.json`;
     }
     
-    let data = null;
-    let surahNames = [];
-    let currentAyah = 0;
-    let surah = 0;
+    let data = null, surahNames = [];
+    let currentAyah = 0, surah = 0;
     let ayahWords = [];
     let prevAyahLastWord = null;
     
-    // CONSTANT: set the constant scrolling speed (pixels per millisecond)
-    const scrollSpeed = 0.1;  // 0.1 pixels per ms = 100px/sec
+    // Set constant scrolling speed (in pixels per millisecond)
+    const scrollSpeed = 0.1;  // e.g., 0.1px per ms = 100px/sec
     
     const audioPlayer = document.getElementById("audioPlayer");
-    const arabicText = document.getElementById("arabicText");
     const arabicLine = document.getElementById("arabicLine");
     const englishText = document.getElementById("englishText");
     const indexDisplay = document.getElementById("indexDisplay");
@@ -293,11 +295,11 @@
         try {
           wakeLock = await navigator.wakeLock.request("screen");
           wakeLock.addEventListener("release", () => {
-            console.log("Screen Wake Lock was released");
+            console.log("Screen Wake Lock released");
           });
-          console.log("Screen Wake Lock is active");
+          console.log("Screen Wake Lock active");
         } catch (err) {
-          console.error(`${err.name}, ${err.message}`);
+          console.error(err);
         }
       }
     }
@@ -323,7 +325,7 @@
       history.replaceState(null, "", newUrl);
     }
     
-    // Populate surah select
+    // Populate Surah and Ayah selects.
     function populateSurahSelect(names) {
       surahInput.innerHTML = "";
       names.forEach(item => {
@@ -333,7 +335,6 @@
         surahInput.appendChild(opt);
       });
     }
-    
     function populateAyahSelect(maxVerse) {
       ayahSelect.innerHTML = "";
       for (let i = 1; i <= maxVerse; i++) {
@@ -343,14 +344,10 @@
         ayahSelect.appendChild(opt);
       }
     }
-    
-    // Update ayah selection when surah selection changes.
     surahInput.addEventListener("change", function() {
       const selectedSurah = parseInt(surahInput.value);
-      const directMatch = surahNames.find(x => String(x["Surah Number"]) === String(selectedSurah));
-      if (directMatch) {
-        populateAyahSelect(directMatch["Surah Verses"]);
-      }
+      const match = surahNames.find(x => String(x["Surah Number"]) === String(selectedSurah));
+      if (match) populateAyahSelect(match["Surah Verses"]);
     });
     
     // Load surah names.
@@ -362,20 +359,14 @@
         if (urlSurah) {
           surah = parseInt(urlSurah);
           surahInput.value = surah;
-          const directMatch = surahNames.find(x => String(x["Surah Number"]) === String(surah));
-          if (directMatch) {
-            populateAyahSelect(directMatch["Surah Verses"]);
-          }
-          if (urlAyah) {
-            ayahSelect.value = urlAyah;
-          }
+          const match = surahNames.find(x => String(x["Surah Number"]) === String(surah));
+          if (match) populateAyahSelect(match["Surah Verses"]);
+          if (urlAyah) ayahSelect.value = urlAyah;
         } else {
           surah = 1;
           surahInput.value = "1";
-          const directMatch = surahNames.find(x => String(x["Surah Number"]) === "1");
-          if (directMatch) {
-            populateAyahSelect(directMatch["Surah Verses"]);
-          }
+          const match = surahNames.find(x => String(x["Surah Number"]) === "1");
+          if (match) populateAyahSelect(match["Surah Verses"]);
         }
       })
       .catch(err => console.error("Error loading surah names:", err));
@@ -383,20 +374,15 @@
     document.getElementById("playerForm").addEventListener("submit", function(e) {
       e.preventDefault();
       surah = parseInt(surahInput.value);
-      if (isNaN(surah)) {
-        alert("Please select a valid surah from the list.");
-        return;
-      }
+      if (isNaN(surah)) { alert("Select a valid surah."); return; }
       currentAyah = parseInt(ayahSelect.value);
       updateURL();
       document.getElementById("startScreen").style.display = "none";
       document.getElementById("playerSection").style.display = "block";
-    
-      requestAnimationFrame(() => {
-        loadPrevAyah(currentAyah);
-        loadSurahData(surah).then(() => {
-          playAyah(currentAyah);
-        });
+      // Load previous ayah's last word (if any) then current surah data.
+      loadPrevAyah(currentAyah);
+      loadSurahData(surah).then(() => {
+        playAyah(currentAyah);
       });
     });
     
@@ -405,9 +391,8 @@
         fetch(getJsonPath(ayah - 1))
           .then(r => r.json())
           .then(prevData => {
-            if (prevData && prevData["w"] && prevData["w"].length > 0) {
+            if (prevData && prevData["w"] && prevData["w"].length > 0)
               prevAyahLastWord = prevData["w"][prevData["w"].length - 1];
-            }
           })
           .catch(err => console.error("Error loading previous ayah:", err));
       } else {
@@ -424,89 +409,54 @@
       }
     }
     
-    function playAyah(ayah) {
-      currentAyah = ayah;
-      updateURL();
-      const ayahData = data[String(ayah)];
-      if (!ayahData) return;
-      ayahWords = ayahData["w"].map((word, i) => ({
-        scheduledTime: (parseFloat(word["b"]) - 0.1) * 1000, // in ms
-        c: word["c"],
-        e: word["e"],
-        index: i
-      }));
-      let surahStr = String(surah).padStart(3, "0");
-      let ayahStr = String(ayah).padStart(3, "0");
-      audioPlayer.src = remoteBaseUrl + surahStr + ayahStr + ".mp3";
-      audioPlayer.load();
-      audioPlayer.oncanplaythrough = function() {
-        // Build the new ayah line with constant-speed scrolling.
-        buildAyahLine();
-        // Wait one frame for the words to render before measuring.
-        requestAnimationFrame(layoutWords);
-        englishText.style.opacity = 0;
-        arabicText.style.opacity = 0;
-        requestWakeLock();
-        audioPlayer.play();
-        updateDisplay();
-      };
-      audioPlayer.onended = function() {
-        if (data[String(ayah + 1)]) {
-          currentAyah = ayah + 1;
-          playAyah(currentAyah);
-        }
-      };
-    }
-    
-    // Build the full ayah line (for landscape mode) using absolutely positioned spans.
+    // Build the ayah line using absolute positioning.
     function buildAyahLine() {
       arabicLine.innerHTML = "";
-      arabicLine.style.position = "relative";
-      // Add previous ayah last word if available.
+      // For left-to-right scrolling, we compute positions so that at time T,
+      // the word's right edge will be at the screen center.
+      // If there is a previous ayah last word, add it.
       if (prevAyahLastWord) {
-        let span = document.createElement("span");
+        const span = document.createElement("span");
         span.className = "arabic";
         span.style.color = "#999";
         span.id = "word-prepend";
         span.textContent = prevAyahLastWord.c;
-        // Scheduled a bit before the first word.
-        let s_prepend = ayahWords.length > 0 ? ayahWords[0].scheduledTime - 500 : 0;
-        span.dataset.scheduledTime = s_prepend;
+        // Schedule slightly before the first word.
+        span.dataset.scheduledTime = (ayahWords.length > 0 ? ayahWords[0].scheduledTime : 0) - 500;
         arabicLine.appendChild(span);
       }
-      // Create a span for each word.
+      // Add each word.
       ayahWords.forEach((w, i) => {
-        let span = document.createElement("span");
+        const span = document.createElement("span");
         span.className = "arabic";
         span.id = "word-" + i;
         span.textContent = w.c;
         span.dataset.scheduledTime = w.scheduledTime;
         arabicLine.appendChild(span);
       });
-      // Append the end symbol.
-      let endSymbol = document.createElement("span");
+      // Append an end symbol.
+      const endSymbol = document.createElement("span");
       endSymbol.className = "arabic";
       endSymbol.style.color = "#999";
       endSymbol.id = "word-end";
       endSymbol.innerHTML = "&#x06DD;";
-      let s_end = ayahWords.length > 0 ? ayahWords[ayahWords.length - 1].scheduledTime + 500 : 0;
-      endSymbol.dataset.scheduledTime = s_end;
+      endSymbol.dataset.scheduledTime = ayahWords.length > 0 ? (ayahWords[ayahWords.length - 1].scheduledTime + 500) : 0;
       arabicLine.appendChild(endSymbol);
       
-      // Reset transform and opacity.
-      arabicLine.style.transform = "translateX(0px)";
-      arabicLine.style.opacity = 1;
+      // Once the spans are rendered, compute their left positions.
+      requestAnimationFrame(layoutWords);
     }
     
-    // Compute each word’s left position so that at time = scheduledTime,
-    // its right edge will be at the screen center.
+    // Compute each word’s left position so that when time equals its scheduledTime,
+    // its right edge is at the screen center.
+    // For left-to-right scrolling, we use:
+    //   left = screenCenter - scrollSpeed * scheduledTime - (word's width)
     function layoutWords() {
       const screenCenter = window.innerWidth / 2;
       Array.from(arabicLine.children).forEach(el => {
         let s = parseFloat(el.dataset.scheduledTime);
         let width = el.offsetWidth;
-        // left = screenCenter + scrollSpeed * scheduledTime - (word's width)
-        let left = screenCenter + scrollSpeed * s - width;
+        let left = screenCenter - scrollSpeed * s - width;
         el.style.position = "absolute";
         el.style.left = left + "px";
       });
@@ -515,26 +465,17 @@
     // Update display each frame.
     function updateDisplay() {
       const currentTimeMs = audioPlayer.currentTime * 1000;
+      
       if (window.innerWidth > window.innerHeight) {
-        // Landscape mode: constant pace scrolling.
-        let offset = -scrollSpeed * currentTimeMs;
+        // For left-to-right scrolling, shift the line rightward.
+        let offset = scrollSpeed * currentTimeMs;
         arabicLine.style.transform = `translateX(${offset}px)`;
         
         // Determine current word index.
         let currentWordIndex = -1;
         for (let i = 0; i < ayahWords.length; i++) {
-          if (currentTimeMs >= ayahWords[i].scheduledTime) {
-            currentWordIndex = i;
-          } else {
-            break;
-          }
-        }
-        // Highlight the current word.
-        for (let i = 0; i < ayahWords.length; i++) {
-          let wSpan = document.getElementById("word-" + i);
-          if (wSpan) {
-            wSpan.className = (i === currentWordIndex) ? "arabic current" : "arabic";
-          }
+          if (currentTimeMs >= ayahWords[i].scheduledTime) currentWordIndex = i;
+          else break;
         }
         let surahStr = String(surah).padStart(3, "0");
         let ayahStr = String(currentAyah).padStart(3, "0");
@@ -542,14 +483,11 @@
         indexDisplay.textContent = `Index: ${surahStr}:${ayahStr}:${wordIndexStr}`;
         englishText.innerHTML = `<div style="text-align:center;">${currentWordIndex >= 0 ? ayahWords[currentWordIndex].e : ""}</div>`;
       } else {
-        // Portrait mode: no scrolling; show only the current word.
+        // Portrait mode: no scrolling.
         let currentWordIndex = -1;
         for (let i = 0; i < ayahWords.length; i++) {
-          if (currentTimeMs >= ayahWords[i].scheduledTime) {
-            currentWordIndex = i;
-          } else {
-            break;
-          }
+          if (currentTimeMs >= ayahWords[i].scheduledTime) currentWordIndex = i;
+          else break;
         }
         arabicLine.style.transform = "none";
         arabicLine.textContent = currentWordIndex >= 0 ? ayahWords[currentWordIndex].c : "";
@@ -560,32 +498,59 @@
         englishText.innerHTML = `<div style="text-align:center;">${currentWordIndex >= 0 ? ayahWords[currentWordIndex].e : ""}</div>`;
       }
       
-      // Fading logic.
-      const fadeInDuration = 300;
-      const fadeOutDuration = 500;
+      // Fade in/out logic.
+      const fadeInDuration = 300, fadeOutDuration = 500;
       let opacity = 1;
-      if (currentTimeMs < fadeInDuration) {
-        opacity = currentTimeMs / fadeInDuration;
-      }
+      if (currentTimeMs < fadeInDuration) opacity = currentTimeMs / fadeInDuration;
       if (audioPlayer.duration) {
-        let totalDurationMs = audioPlayer.duration * 1000;
-        if (currentTimeMs > totalDurationMs - fadeOutDuration) {
-          opacity = (totalDurationMs - currentTimeMs) / fadeOutDuration;
-        }
+        let totalMs = audioPlayer.duration * 1000;
+        if (currentTimeMs > totalMs - fadeOutDuration) opacity = (totalMs - currentTimeMs) / fadeOutDuration;
       }
       englishText.style.opacity = opacity;
-      arabicText.style.opacity = opacity;
+      document.getElementById("arabicText").style.opacity = opacity;
       
       requestAnimationFrame(updateDisplay);
     }
     
-    // Re-layout words on resize (landscape mode).
+    // Play the requested ayah.
+    function playAyah(ayah) {
+      currentAyah = ayah;
+      updateURL();
+      const ayahData = data[String(ayah)];
+      if (!ayahData) return;
+      ayahWords = ayahData["w"].map((word, i) => ({
+        scheduledTime: (parseFloat(word["b"]) - 0.1) * 1000,
+        c: word["c"],
+        e: word["e"],
+        index: i
+      }));
+      
+      let surahStr = String(surah).padStart(3, "0");
+      let ayahStr = String(ayah).padStart(3, "0");
+      audioPlayer.src = remoteBaseUrl + surahStr + ayahStr + ".mp3";
+      audioPlayer.load();
+      audioPlayer.oncanplaythrough = function() {
+        buildAyahLine();
+        // Fade in and start playback.
+        englishText.style.opacity = 0;
+        document.getElementById("arabicText").style.opacity = 0;
+        requestWakeLock();
+        audioPlayer.play();
+        updateDisplay();
+      };
+      audioPlayer.onended = function() {
+        if (data[String(ayah + 1)]) {
+          playAyah(ayah + 1);
+        }
+      };
+    }
+    
+    // Re-compute positions on resize/orientation change.
     window.addEventListener("resize", function() {
       if (window.innerWidth > window.innerHeight && document.getElementById("playerSection").style.display === "block") {
         layoutWords();
       }
     });
-    
     window.addEventListener("orientationchange", function() {
       setTimeout(function() {
         if (window.innerWidth > window.innerHeight && document.getElementById("playerSection").style.display === "block") {
