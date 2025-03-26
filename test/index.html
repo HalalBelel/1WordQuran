@@ -552,7 +552,7 @@
           const nextElem = document.getElementById("word-" + (currIdx + 1));
           if (nextElem) {
             const nextRect = nextElem.getBoundingClientRect();
-            if (nextRect.left >= centerX) {
+            if (nextRect.right >= centerX) {
               currentWordOverlay.style.opacity = "0";
             } else {
               currentWordOverlay.style.opacity = "1";
